@@ -188,13 +188,18 @@
           </div>
         </div>
 
-        <!-- Live Interactive Filter Status & Dataset Floor Notice -->
+        <!-- Live Interactive Filter Status -->
         <div class="pt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
           <span class="inline-flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>Live filter active &mdash; editing any value above updates results &amp; chart immediately.</span>
           </span>
-          <span id="datasetFloorNotice" class="hidden text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md font-medium"></span>
+          <span id="captureFloorWarning" class="hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+            <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span id="captureFloorWarningText"></span>
+          </span>
         </div>
       </div>
     </section>
@@ -489,236 +494,6 @@
   <!-- ========================================================= -->
   <!-- 4. STOCK 60-DAY CANDLESTICK & VWAP DRILL-DOWN MODAL       -->
   <!-- ========================================================= -->
-  <div id="cloudSetupModal" class="hidden fixed inset-0 z-50 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
-      <!-- Modal Header -->
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-indigo-50 via-blue-50 to-white shrink-0">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-600 text-white">100% Free &amp; Automatic</span>
-            <h3 class="text-base font-bold text-slate-900">Visual Setup Guide: Google Sites + Nightly US EOD</h3>
-          </div>
-          <p class="text-xs text-slate-600 mt-0.5">Follow these 4 visual steps once (takes 3 minutes). After this, your website updates automatically every night!</p>
-        </div>
-        <button id="closeCloudSetupBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition cursor-pointer" aria-label="Close">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Scrollable Visual Steps Body -->
-      <div class="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs">
-
-        <!-- STEP 1 -->
-        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div class="md:col-span-6 space-y-2">
-            <div class="inline-flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">1</span>
-              <h4 class="font-bold text-sm text-slate-900">Create a Free GitHub Folder</h4>
-            </div>
-            <p class="text-slate-600 leading-relaxed">
-              Go to <a href="https://github.com" target="_blank" rel="noopener" class="text-blue-600 font-semibold underline">github.com</a> and sign in (or create a free account).
-            </p>
-            <ul class="space-y-1 text-slate-700 pl-4 list-disc">
-              <li>Click the <strong>+</strong> icon at the top-right &rarr; <strong>New repository</strong>.</li>
-              <li>Type the name: <code class="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-semibold text-indigo-700">us-screener</code></li>
-              <li>Leave it set to <strong>Public</strong> and click the green <strong>Create repository</strong> button.</li>
-            </ul>
-          </div>
-
-          <!-- Visual Reference Illustration 1 -->
-          <div class="md:col-span-6 bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 select-none">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-              <span>Reference Screen: GitHub New Repository</span>
-              <span class="text-indigo-600">github.com/new</span>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-[#f6f8fa] p-3 space-y-2.5">
-              <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="w-4 h-4 rounded-full bg-slate-800 text-white text-[9px] flex items-center justify-center font-bold">G</span>
-                  <span class="font-semibold text-slate-700 text-[11px]">Create a new repository</span>
-                </div>
-                <span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[10px]">+ &blacktriangledown;</span>
-              </div>
-              <div class="space-y-1">
-                <div class="text-[10px] font-semibold text-slate-600">Repository name *</div>
-                <div class="px-2.5 py-1 rounded bg-white border-2 border-indigo-500 text-slate-900 font-semibold text-[11px] flex items-center justify-between">
-                  <span>us-screener</span>
-                  <span class="text-emerald-600 text-[10px]">&#10003; Available</span>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 text-[11px] text-slate-700">
-                <span class="w-3.5 h-3.5 rounded-full border-4 border-blue-600 inline-block"></span>
-                <span class="font-semibold">Public</span>
-                <span class="text-[10px] text-slate-400">(Required for free Google Sites link)</span>
-              </div>
-              <div class="pt-1 flex justify-end">
-                <span class="px-3 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] ring-2 ring-emerald-300">
-                  Create repository &larr; Click
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 2 -->
-        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div class="md:col-span-6 space-y-2.5">
-            <div class="inline-flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">2</span>
-              <h4 class="font-bold text-sm text-slate-900">Download Your 2 Files &amp; Drag to GitHub</h4>
-            </div>
-            <p class="text-slate-600 leading-relaxed">
-              Click both blue buttons below to save the 2 files to your computer:
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <button type="button" id="downloadIndexHtmlBtn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>Download index.html</span>
-              </button>
-              <button type="button" id="downloadCloudPyBtn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white shadow-2xs transition cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>Download fetch_us_eod.py</span>
-              </button>
-            </div>
-            <p class="text-slate-600 leading-relaxed">
-              Then on your new GitHub page, click <strong>uploading an existing file</strong>, drag both files into the box, and click <strong>Commit changes</strong>.
-            </p>
-          </div>
-
-          <!-- Visual Reference Illustration 2 -->
-          <div class="md:col-span-6 bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 select-none">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Reference Screen: GitHub Drag &amp; Drop Upload
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-[#f6f8fa] p-3 space-y-2">
-              <div class="text-[11px] text-slate-600">
-                Quick setup &mdash; <span class="text-blue-600 underline font-semibold">uploading an existing file</span>
-              </div>
-              <div class="rounded-lg border-2 border-dashed border-blue-400 bg-blue-50/50 p-3 text-center space-y-1.5">
-                <div class="text-[11px] font-semibold text-slate-700">Drag files here to add them to your repository</div>
-                <div class="flex items-center justify-center gap-2 text-[10px]">
-                  <span class="px-2 py-0.5 rounded bg-white border border-slate-200 font-semibold text-blue-700">&#128196; index.html</span>
-                  <span class="px-2 py-0.5 rounded bg-white border border-slate-200 font-semibold text-slate-700">&#128196; fetch_us_eod.py</span>
-                </div>
-              </div>
-              <div class="pt-0.5 flex justify-end">
-                <span class="px-3 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px]">
-                  Commit changes &larr; Click
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 3 -->
-        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div class="md:col-span-6 space-y-2">
-            <div class="inline-flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">3</span>
-              <h4 class="font-bold text-sm text-slate-900">Turn On Nightly Automatic EOD Updates</h4>
-            </div>
-            <ol class="space-y-1.5 text-slate-700 pl-4 list-decimal leading-relaxed">
-              <li>On your GitHub repo page, click <strong>Add file &rarr; Create new file</strong>.</li>
-              <li>
-                Click <button type="button" id="copyWorkflowPathBtn" class="px-2 py-0.5 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-semibold cursor-pointer">Copy File Name</button> and paste it into the <em>"Name your file..."</em> box (<code class="text-[11px]">.github/workflows/daily_eod.yml</code>).
-              </li>
-              <li>
-                Click <button type="button" id="copyWorkflowYamlBtn" class="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-semibold cursor-pointer">Copy Schedule Code</button> and paste it into the big editor box below it, then click <strong>Commit changes</strong>.
-              </li>
-            </ol>
-          </div>
-
-          <!-- Visual Reference Illustration 3 -->
-          <div class="md:col-span-6 bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 select-none">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Reference Screen: GitHub Create New File
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-[#f6f8fa] p-3 space-y-2">
-              <div class="flex items-center gap-1.5 text-[11px]">
-                <span class="text-blue-600 font-semibold">us-screener</span>
-                <span class="text-slate-400">/</span>
-                <span class="px-2 py-0.5 rounded bg-white border-2 border-indigo-500 text-slate-800 font-mono text-[10px]">.github/workflows/daily_eod.yml</span>
-              </div>
-              <div class="rounded bg-white border border-slate-200 p-2 font-mono text-[10px] text-slate-600 leading-relaxed">
-                name: Daily US Market EOD Update<br />
-                on:<br />
-                &nbsp;&nbsp;schedule: - cron: '0 22 * * 1-5'<br />
-                &nbsp;&nbsp;workflow_dispatch:
-              </div>
-              <div class="flex items-center justify-between pt-0.5">
-                <span class="text-[10px] text-slate-500">Runs Mon–Fri after US close</span>
-                <span class="px-3 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px]">
-                  Commit changes... &larr; Click
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 4 -->
-        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div class="md:col-span-6 space-y-2">
-            <div class="inline-flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">4</span>
-              <h4 class="font-bold text-sm text-slate-900">Get Your Live Link &amp; Paste into Google Sites</h4>
-            </div>
-            <ul class="space-y-1.5 text-slate-700 pl-4 list-disc leading-relaxed">
-              <li>In GitHub, click <strong>Settings</strong> (top tab) &rarr; <strong>Pages</strong> (left sidebar).</li>
-              <li>Under <em>Branch</em>, change <em>None</em> to <strong>main</strong> and click <strong>Save</strong>. GitHub gives you a live link like <code class="text-[11px] bg-white px-1 border rounded">https://yourname.github.io/us-screener/</code></li>
-              <li>Open <strong>Google Sites</strong> &rarr; click <strong>Insert &rarr; Embed &rarr; By URL</strong> &rarr; paste that link &rarr; click <strong>Publish</strong>!</li>
-            </ul>
-          </div>
-
-          <!-- Visual Reference Illustration 4 -->
-          <div class="md:col-span-6 bg-white rounded-xl border border-slate-200 shadow-xs p-3.5 select-none">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Reference Screen: Google Sites Embed
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-[#f6f8fa] p-3 grid grid-cols-12 gap-2 items-center">
-              <div class="col-span-7 bg-white rounded border border-slate-200 p-2.5 space-y-2">
-                <div class="text-[11px] font-bold text-slate-800">Embed from the web</div>
-                <div class="flex gap-2 border-b border-slate-200 pb-1 text-[10px]">
-                  <span class="font-bold text-blue-600 border-b-2 border-blue-600 pb-0.5">By URL</span>
-                  <span class="text-slate-400">Embed code</span>
-                </div>
-                <div class="px-2 py-1 rounded border border-blue-500 bg-blue-50/40 text-[10px] text-slate-800 truncate">
-                  https://yourname.github.io/us-screener/
-                </div>
-                <div class="flex justify-end">
-                  <span class="px-2.5 py-0.5 rounded bg-blue-600 text-white font-semibold text-[10px]">Insert</span>
-                </div>
-              </div>
-              <div class="col-span-5 bg-white rounded border border-slate-200 p-2 space-y-1.5 text-[10px]">
-                <div class="font-bold text-slate-500 border-b border-slate-100 pb-1">Insert Panel</div>
-                <div class="px-2 py-1 rounded bg-slate-50 text-slate-600">Text box</div>
-                <div class="px-2 py-1 rounded bg-slate-50 text-slate-600">Images</div>
-                <div class="px-2 py-1 rounded bg-blue-50 border border-blue-300 text-blue-700 font-bold">&lt;&gt; Embed &larr;</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs shrink-0">
-        <span class="text-slate-500">Tip: You can also trigger an immediate EOD refresh anytime under GitHub &rarr; <strong>Actions</strong> &rarr; <strong>Run workflow</strong>.</span>
-        <button id="closeCloudSetupFooterBtn" type="button" class="px-4 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-900 text-white transition cursor-pointer">
-          Got It
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- 5. STOCK 60-DAY CANDLESTICK & VWAP DRILL-DOWN MODAL       -->
-  <!-- ========================================================= -->
   <div id="stockDetailModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
     <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden">
       <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -1008,9 +783,10 @@
         minMktCap: 300,
         minTurnoverM: 5.0
       },
+      captureFloor: null,
+      isLegacyFloor: false,
       filteredHistory: [],
       realCandles: {},
-      datasetFloor: null,
       selectedDate: '',
       activeSectors: new Set(GICS_SECTORS.map(s => s.key)),
       searchQuery: '',
@@ -1022,162 +798,81 @@
       viewMode: 'bars',
       zoomEnabled: true,
       zoomPercent: 100,
-      hoveredBarIndex: -1,
-      barHitboxes: []
+      chartBarsMeta: []
     };
 
     // =========================================================================
     // 5. FILTER EVALUATION, CLOUD DATA LOADER & HELPERS
     // =========================================================================
-    function updateDatasetFloorBanner() {
-      const notice = document.getElementById('datasetFloorNotice');
-      if (!notice) return;
-      if (!state.datasetFloor) {
-        notice.classList.add('hidden');
-        return;
-      }
-      const fl = state.datasetFloor;
-      const f = state.filters;
-      const belowFloor =
-        f.minTurnoverM < fl.minTurnoverM ||
-        f.minGain < fl.minGain ||
-        f.volMult < fl.volMult ||
-        f.minPrice < fl.minPrice ||
-        f.minMktCap < fl.minMktCapM;
-
-      if (belowFloor) {
-        notice.textContent = `Current EOD file only includes stocks down to $${fl.minTurnoverM}M turnover. Update fetch_us_eod.py & run GitHub Actions once to unlock $1M–$5M stocks.`;
-        notice.classList.remove('hidden');
-      } else {
-        notice.classList.add('hidden');
-      }
-    }
-
-    function loadParsedEodDataset(parsed, sourceLabelPrefix = 'Live EOD') {
-      if (!parsed || !Array.isArray(parsed.history) || parsed.history.length === 0) {
-        return false;
-      }
-
-      rawHistory = parsed.history;
-      state.realCandles = parsed.candles || {};
-      state.datasetFloor = parsed.captureFloor || {
-        minTurnoverM: 5.0,
-        minGain: 3.0,
-        volMult: 1.5,
-        minPrice: 2.0,
-        minMktCapM: 300
-      };
-      state.selectedDate = rawHistory[rawHistory.length - 1].date;
-      state.currentPage = 1;
-
-      applyScanFilters();
-      renderTable();
-      drawBacktestChart();
-      updateDatasetFloorBanner();
-
-      const badge = document.getElementById('dataSourceBadge');
-      const dot = document.getElementById('dataSourceDot');
-      const txt = document.getElementById('dataSourceText');
-      badge.className = 'hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full';
-      dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-      txt.textContent = `${sourceLabelPrefix} • ${formatDisplayDate(state.selectedDate)}`;
-      return true;
-    }
-
-    async function tryAutoLoadCloudEodJson() {
-      try {
-        const res = await fetch(`./us_eod_data.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) return;
-        const parsed = await res.json();
-        loadParsedEodDataset(parsed, 'Auto-Synced EOD');
-      } catch (err) {
-        // Silent fallback to built-in sample data when running locally before GitHub upload
-      }
-    }
-
-    function applyScanFilters() {
-      const f = state.filters;
-      const minTurnoverDollars = f.minTurnoverM * 1_000_000;
-
-      state.filteredHistory = rawHistory.map(day => {
-        const matching = day.stocks.filter(st => {
-          const effectiveTurnover = Math.max(st.turnover || 0, st.turnover20d || 0);
-          return (
-            st.volMult >= f.volMult &&
-            st.emaVol30 >= f.minEmaVol &&
-            st.pctChange >= f.minGain &&
-            st.price > f.minPrice &&
-            st.mktCapM > f.minMktCap &&
-            effectiveTurnover >= minTurnoverDollars
-          );
-        });
-        return { date: day.date, stocks: matching };
-      });
-
-      if (!state.selectedDate || !state.filteredHistory.some(d => d.date === state.selectedDate)) {
-        state.selectedDate = state.filteredHistory[state.filteredHistory.length - 1].date;
-      }
-      state.currentPage = 1;
-    }
-
     function formatDisplayDate(dateStr) {
       if (!dateStr) return '--';
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const dt = new Date(y, m - 1, d);
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
       return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    function formatShortAxisDate(dateStr) {
+    function formatShortDate(dateStr) {
       if (!dateStr) return '';
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const dt = new Date(y, m - 1, d);
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
       return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
-    function formatCompactDollar(num) {
-      if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
-      if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-      return `$${num.toLocaleString('en-US')}`;
+    function formatCompactDollar(amount) {
+      if (!amount || isNaN(amount)) return '$0';
+      if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
+      if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+      if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+      return `$${amount.toFixed(0)}`;
     }
 
+    let toastTimer = null;
     function showToast(message) {
-      const el = document.getElementById('toastNotification');
-      el.textContent = message;
-      el.classList.remove('hidden');
-      clearTimeout(el._timer);
-      el._timer = setTimeout(() => el.classList.add('hidden'), 3200);
+      const toast = document.getElementById('toastNotification');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2800);
     }
 
-    function copyTextToClipboard(text, successMessage) {
+    function copyTextToClipboard(text, successMsg) {
       if (!text) {
-        showToast('No text available to copy.');
+        showToast('No symbols available to copy');
         return;
       }
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.top = '-9999px';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      textarea.setSelectionRange(0, textarea.value.length);
-      let ok = false;
-      try {
-        ok = document.execCommand('copy');
-      } catch (err) {
-        ok = false;
-      }
-      document.body.removeChild(textarea);
-
-      if (ok) {
-        showToast(successMessage);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg);
+        }).catch(() => {
+          fallbackCopyText(text, successMsg);
+        });
       } else {
-        showToast('Copy failed. Please try again.');
+        fallbackCopyText(text, successMsg);
       }
     }
 
-    function downloadTextFile(filename, content, mimeType = 'text/plain') {
+    function fallbackCopyText(text, successMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (e) {
+        showToast('Unable to copy automatically — please use Preview & Edit List');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function downloadTextFile(filename, content, mimeType) {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1189,258 +884,389 @@
       URL.revokeObjectURL(url);
     }
 
-    function formatStockSymbolsList(stocks, format = 'comma') {
+    function formatStockSymbolsList(stocks, fmt) {
       if (!stocks || stocks.length === 0) return '';
-      if (format === 'tv') {
-        return stocks.map(s => `${(s.exchange || 'NASDAQ').toUpperCase()}:${s.symbol}`).join(',');
+      if (fmt === 'tv') {
+        return stocks.map(s => `${s.exchange || 'NASDAQ'}:${s.symbol}`).join(', ');
       }
-      if (format === 'lines') {
+      if (fmt === 'lines') {
         return stocks.map(s => s.symbol).join('\n');
       }
       return stocks.map(s => s.symbol).join(', ');
     }
 
-    function getVisibleHistoryWindow() {
-      const slicedByTimeframe = state.filteredHistory.slice(-state.timeframeDays);
-      if (!state.zoomEnabled || state.zoomPercent >= 100) {
-        return slicedByTimeframe;
-      }
-      const count = Math.max(15, Math.round((slicedByTimeframe.length * state.zoomPercent) / 100));
-      return slicedByTimeframe.slice(-count);
-    }
+    function applyScanFilters() {
+      const { volMult, minEmaVol, minGain, minPrice, minMktCap, minTurnoverM } = state.filters;
+      const minTurnoverDollars = minTurnoverM * 1_000_000;
 
-    function getUniqueBacktestStocks() {
-      const visibleDays = getVisibleHistoryWindow();
-      const map = new Map();
-      visibleDays.forEach(day => {
-        day.stocks.forEach(st => {
-          if (!state.activeSectors.has(st.sector.toLowerCase())) return;
-          if (!map.has(st.symbol)) {
-            map.set(st.symbol, { symbol: st.symbol, exchange: st.exchange || 'NASDAQ', name: st.name, count: 1 });
-          } else {
-            map.get(st.symbol).count += 1;
-          }
+      state.filteredHistory = rawHistory.map(dayEntry => {
+        const matched = (dayEntry.stocks || []).filter(st => {
+          if ((st.volMult || 0) < volMult) return false;
+          if ((st.emaVol30 || 0) < minEmaVol) return false;
+          if ((st.pctChange || 0) < minGain) return false;
+          if ((st.price || 0) <= minPrice) return false;
+          if ((st.mktCapM || 0) <= minMktCap) return false;
+          const dayTurnover = st.turnover || 0;
+          const avgTurnover20 = st.turnover20d || 0;
+          if (dayTurnover < minTurnoverDollars && avgTurnover20 < minTurnoverDollars) return false;
+          return true;
         });
+        return { date: dayEntry.date, stocks: matched };
       });
-      return Array.from(map.values()).sort((a, b) => b.count - a.count);
+
+      if (state.filteredHistory.length > 0) {
+        const exists = state.filteredHistory.some(d => d.date === state.selectedDate);
+        if (!exists) {
+          state.selectedDate = state.filteredHistory[state.filteredHistory.length - 1].date;
+        }
+      }
     }
 
     function getFilteredStocksForSelectedDate() {
-      const dayObj = state.filteredHistory.find(d => d.date === state.selectedDate) || state.filteredHistory[state.filteredHistory.length - 1];
-      if (!dayObj) return [];
-      const q = state.searchQuery.trim().toLowerCase();
+      if (!state.filteredHistory.length) return [];
+      const dayEntry =
+        state.filteredHistory.find(d => d.date === state.selectedDate) ||
+        state.filteredHistory[state.filteredHistory.length - 1];
+      if (!dayEntry) return [];
 
-      return dayObj.stocks
-        .filter(st => state.activeSectors.has(st.sector.toLowerCase()))
-        .filter(st => !q || st.symbol.toLowerCase().includes(q) || st.name.toLowerCase().includes(q))
-        .sort((a, b) => {
-          const valA = a[state.sortField];
-          const valB = b[state.sortField];
-          if (typeof valA === 'string') {
-            return state.sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      const q = (state.searchQuery || '').trim().toLowerCase();
+      const filtered = dayEntry.stocks.filter(st => {
+        if (!state.activeSectors.has(st.sector)) return false;
+        if (q) {
+          const matchSym = (st.symbol || '').toLowerCase().includes(q);
+          const matchName = (st.name || '').toLowerCase().includes(q);
+          const matchSec = (st.sector || '').toLowerCase().includes(q);
+          if (!matchSym && !matchName && !matchSec) return false;
+        }
+        return true;
+      });
+
+      const field = state.sortField;
+      const mult = state.sortDir === 'asc' ? 1 : -1;
+      return [...filtered].sort((a, b) => {
+        const valA = a[field];
+        const valB = b[field];
+        if (typeof valA === 'string' || typeof valB === 'string') {
+          return String(valA || '').localeCompare(String(valB || '')) * mult;
+        }
+        return ((Number(valA) || 0) - (Number(valB) || 0)) * mult;
+      });
+    }
+
+    function getVisibleHistoryWindow() {
+      if (!state.filteredHistory.length) return [];
+      const sliced = state.filteredHistory.slice(-state.timeframeDays);
+      if (state.zoomEnabled && state.zoomPercent < 100) {
+        const count = Math.max(10, Math.round((sliced.length * state.zoomPercent) / 100));
+        return sliced.slice(-count);
+      }
+      return sliced;
+    }
+
+    function getUniqueBacktestStocks() {
+      const days = getVisibleHistoryWindow();
+      const map = new Map();
+      days.forEach(d => {
+        d.stocks.forEach(st => {
+          if (state.activeSectors.has(st.sector) && !map.has(st.symbol)) {
+            map.set(st.symbol, st);
           }
-          return state.sortDir === 'asc' ? valA - valB : valB - valA;
         });
+      });
+      return Array.from(map.values());
     }
 
-    // =========================================================================
-    // 6. RENDER RESULTS TABLE & PAGINATION
-    // =========================================================================
-    function renderTable() {
-      const stocks = getFilteredStocksForSelectedDate();
-      const totalItems = stocks.length;
-      const totalPages = Math.max(1, Math.ceil(totalItems / state.perPage));
-      if (state.currentPage > totalPages) state.currentPage = totalPages;
+    function updateCaptureFloorWarning() {
+      const banner = document.getElementById('captureFloorWarning');
+      const textEl = document.getElementById('captureFloorWarningText');
+      if (!banner || !textEl) return;
 
-      const startIdx = (state.currentPage - 1) * state.perPage;
-      const pageItems = stocks.slice(startIdx, startIdx + state.perPage);
+      if (!state.captureFloor) {
+        banner.classList.add('hidden');
+        return;
+      }
 
-      const latestDate = state.filteredHistory[state.filteredHistory.length - 1]?.date;
-      const isHistoricalDate = state.selectedDate !== latestDate;
-      const resetBtn = document.getElementById('resetLatestDateBtn');
-      const sectionTitle = document.getElementById('tableSectionTitle');
-      const copyTableBtnLabel = document.getElementById('copyTableBtnLabel');
-      const btCopyDateLabel = document.getElementById('btCopyDateLabel');
-      const selectedBarBadge = document.getElementById('selectedBarBadge');
+      const f = state.filters;
+      const floor = state.captureFloor;
+      const exceeded = [];
 
-      selectedBarBadge.textContent = formatDisplayDate(state.selectedDate);
-      btCopyDateLabel.textContent = formatShortAxisDate(state.selectedDate);
-      document.getElementById('btUniqueCountHint').textContent = String(getUniqueBacktestStocks().length);
-      document.getElementById('tableCountPill').textContent = `${totalItems} stocks`;
+      if (f.minTurnoverM < floor.minTurnoverM) {
+        exceeded.push(`VWAP Turnover < $${floor.minTurnoverM}M`);
+      }
+      if (f.minGain < floor.minGain) {
+        exceeded.push(`Daily % Gain < ${floor.minGain}%`);
+      }
+      if (f.volMult < floor.volMult) {
+        exceeded.push(`Volume Mult < ${floor.volMult}x`);
+      }
+      if (f.minPrice < floor.minPrice) {
+        exceeded.push(`Daily Close < $${floor.minPrice}`);
+      }
+      if (f.minMktCap < floor.minMktCapM) {
+        exceeded.push(`Market Cap < $${floor.minMktCapM}M`);
+      }
 
-      if (isHistoricalDate) {
-        resetBtn.classList.remove('hidden');
-        sectionTitle.textContent = `Backtest Results (${formatDisplayDate(state.selectedDate)})`;
-        copyTableBtnLabel.textContent = `Copy Backtest (${totalItems})`;
+      if (exceeded.length === 0) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      if (state.isLegacyFloor) {
+        textEl.textContent = `Loaded EOD file only includes stocks above original defaults (${exceeded.join(', ')}). Update fetch_us_eod.py & run GitHub Actions once to unlock lower values.`;
       } else {
-        resetBtn.classList.add('hidden');
-        sectionTitle.textContent = 'Current Scan Results';
-        copyTableBtnLabel.textContent = `Copy Symbols (${totalItems})`;
+        textEl.textContent = `EOD file pre-filters at ${exceeded.join(', ')}. To scan below this floor, lower captureFloor in fetch_us_eod.py and re-run Actions.`;
       }
-
-      document.getElementById('activeSectorFilterNote').textContent =
-        state.activeSectors.size === GICS_SECTORS.length
-          ? 'All 11 Sectors'
-          : `${state.activeSectors.size} of 11 Sectors Selected`;
-
-      const tbody = document.getElementById('screenerTableBody');
-      if (pageItems.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" class="py-10 text-center text-slate-400 text-xs">
-              No US stocks matched the active filter criteria on ${formatDisplayDate(state.selectedDate)}.
-            </td>
-          </tr>`;
-      } else {
-        const maxGain = Math.max(12, ...stocks.map(s => s.pctChange));
-        tbody.innerHTML = pageItems.map((stock, i) => {
-          const serial = startIdx + i + 1;
-          const barPct = Math.min(100, Math.round((stock.pctChange / maxGain) * 100));
-          const sectorColor = SECTOR_COLOR_MAP[stock.sector.toLowerCase()] || '#94a3b8';
-
-          return `
-            <tr class="hover:bg-blue-50/40 transition-colors">
-              <td class="py-2.5 px-3 text-center text-slate-500 font-medium">${serial}</td>
-              <td class="py-2.5 px-3">
-                <button type="button" onclick="openStockModal('${stock.symbol}')" class="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left cursor-pointer">
-                  ${stock.name}
-                </button>
-              </td>
-              <td class="py-2.5 px-3">
-                <div class="inline-flex items-center gap-1.5 group">
-                  <button type="button" onclick="openStockModal('${stock.symbol}')" class="text-blue-600 hover:text-blue-800 hover:underline font-semibold cursor-pointer">
-                    ${stock.symbol}
-                  </button>
-                  <span class="text-[10px] text-slate-400 font-medium">${stock.exchange || 'NASDAQ'}</span>
-                  <button type="button" onclick="copySingleSymbol('${stock.symbol}')" title="Copy ${stock.symbol}"
-                    class="opacity-40 group-hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
-                    </svg>
-                  </button>
-                </div>
-              </td>
-              <td class="py-2.5 px-3 hidden sm:table-cell">
-                <span class="inline-flex items-center gap-1.5 text-[11px] text-slate-600 capitalize">
-                  <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${sectorColor}"></span>
-                  ${stock.sector}
-                </span>
-              </td>
-              <td class="py-2.5 px-3 text-right font-medium text-slate-800">${stock.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td class="py-2.5 px-3 text-right font-bold text-emerald-600"
-                style="background: linear-gradient(90deg, transparent ${100 - barPct}%, rgba(16, 185, 129, 0.14) ${100 - barPct}%);">
-                +${stock.pctChange.toFixed(2)}%
-              </td>
-              <td class="py-2.5 px-3 text-right font-medium text-slate-700">${stock.volume.toLocaleString('en-US')}</td>
-              <td class="py-2.5 px-3 text-right hidden md:table-cell text-slate-600 font-medium">${formatCompactDollar(stock.turnover)}</td>
-              <td class="py-2.5 px-3 text-center">
-                <button type="button" onclick="openStockModal('${stock.symbol}')" title="View 60-Day Candlestick Chart"
-                  class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                  </svg>
-                </button>
-              </td>
-            </tr>`;
-        }).join('');
-      }
-
-      const fromNum = totalItems === 0 ? 0 : startIdx + 1;
-      const toNum = Math.min(totalItems, startIdx + state.perPage);
-      document.getElementById('paginationSummaryText').textContent = `${totalItems} stocks (${fromNum} to ${toNum})`;
-      document.getElementById('pageJumpInput').value = String(state.currentPage);
-      document.getElementById('pageJumpInput').max = String(totalPages);
-
-      const pagContainer = document.getElementById('paginationControls');
-      let btnsHtml = `
-        <button type="button" ${state.currentPage <= 1 ? 'disabled' : ''} onclick="goToPage(${state.currentPage - 1})"
-          class="px-2.5 py-1 rounded-md border border-slate-200 text-xs font-medium ${state.currentPage <= 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-slate-600 bg-white hover:bg-slate-50 cursor-pointer'}">
-          &laquo; Previous
-        </button>`;
-
-      const maxVisible = 5;
-      let startP = Math.max(1, state.currentPage - 2);
-      let endP = Math.min(totalPages, startP + maxVisible - 1);
-      if (endP - startP < maxVisible - 1) startP = Math.max(1, endP - maxVisible + 1);
-
-      for (let p = startP; p <= endP; p++) {
-        const active = p === state.currentPage;
-        btnsHtml += `
-          <button type="button" onclick="goToPage(${p})"
-            class="w-7 h-7 rounded-md text-xs font-semibold transition cursor-pointer ${active ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}">
-            ${p}
-          </button>`;
-      }
-
-      btnsHtml += `
-        <button type="button" ${state.currentPage >= totalPages ? 'disabled' : ''} onclick="goToPage(${state.currentPage + 1})"
-          class="px-2.5 py-1 rounded-md border border-slate-200 text-xs font-medium ${state.currentPage >= totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-slate-600 bg-white hover:bg-slate-50 cursor-pointer'}">
-          Next &raquo;
-        </button>`;
-
-      pagContainer.innerHTML = btnsHtml;
+      banner.classList.remove('hidden');
     }
 
-    window.goToPage = function (page) {
-      state.currentPage = page;
+    function loadParsedEodDataset(parsed, sourceLabelPrefix = 'Auto-Synced EOD') {
+      if (!parsed || !Array.isArray(parsed.history) || parsed.history.length === 0) {
+        return false;
+      }
+
+      rawHistory = parsed.history;
+      state.realCandles = parsed.candles || {};
+      state.isLegacyFloor = !parsed.captureFloor;
+      state.captureFloor = parsed.captureFloor || {
+        minTurnoverM: 5.0,
+        minGain: 3.0,
+        volMult: 1.5,
+        minPrice: 2.0,
+        minMktCapM: 300.0
+      };
+      state.selectedDate = rawHistory[rawHistory.length - 1].date;
+      state.currentPage = 1;
+
+      applyScanFilters();
+      updateCaptureFloorWarning();
       renderTable();
-    };
+      drawBacktestChart();
 
-    window.copySingleSymbol = function (symbol) {
-      copyTextToClipboard(symbol, `Copied ${symbol} to clipboard`);
-    };
+      const dot = document.getElementById('dataSourceDot');
+      const textEl = document.getElementById('dataSourceText');
+      if (dot) {
+        dot.classList.remove('bg-amber-400');
+        dot.classList.add('bg-emerald-500');
+      }
+      if (textEl) {
+        const latestDt = parsed.latestTradingDate || rawHistory[rawHistory.length - 1].date;
+        textEl.textContent = `${sourceLabelPrefix} • ${formatDisplayDate(latestDt)}`;
+      }
+      return true;
+    }
+
+    async function autoFetchCloudEod() {
+      try {
+        const res = await fetch(`./us_eod_data.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const parsed = await res.json();
+        loadParsedEodDataset(parsed, 'Auto-Synced EOD');
+      } catch (err) {
+        // Fallback silently to sample dataset when opened locally without us_eod_data.json
+      }
+    }
 
     // =========================================================================
-    // 7. RENDER INTERACTIVE SECTOR COLOR LEGEND
+    // 6. RENDER SECTOR LEGEND & SCREENER RESULTS TABLE
     // =========================================================================
     function renderSectorLegend() {
       const container = document.getElementById('sectorLegendContainer');
-      container.innerHTML = GICS_SECTORS.map(sec => {
-        const isActive = state.activeSectors.has(sec.key);
-        return `
-          <button type="button" data-sector-key="${sec.key}"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border transition cursor-pointer ${
-              isActive
-                ? 'bg-white border-slate-200 text-slate-700 shadow-2xs'
-                : 'bg-slate-100/70 border-transparent text-slate-400 opacity-55'
-            }">
-            <span class="w-3.5 h-2.5 rounded-xs shrink-0" style="background-color:${sec.color}"></span>
-            <span>${sec.label}</span>
-          </button>`;
-      }).join('');
+      if (!container) return;
+      container.innerHTML = '';
 
-      container.querySelectorAll('[data-sector-key]').forEach(btn => {
+      GICS_SECTORS.forEach(sec => {
+        const isActive = state.activeSectors.has(sec.key);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border transition cursor-pointer ${
+          isActive
+            ? 'bg-white border-slate-300 text-slate-800 shadow-2xs'
+            : 'bg-slate-100/70 border-slate-200/70 text-slate-400 opacity-60'
+        }`;
+        btn.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-xs shrink-0" style="background-color: ${sec.color}"></span>
+          <span>${sec.label}</span>
+        `;
         btn.addEventListener('click', () => {
-          const key = btn.getAttribute('data-sector-key');
-          if (state.activeSectors.has(key)) {
-            if (state.activeSectors.size > 1) {
-              state.activeSectors.delete(key);
+          if (state.activeSectors.has(sec.key)) {
+            if (state.activeSectors.size === 1) {
+              state.activeSectors = new Set(GICS_SECTORS.map(s => s.key));
             } else {
-              showToast('At least one sector must remain active.');
-              return;
+              state.activeSectors.delete(sec.key);
             }
           } else {
-            state.activeSectors.add(key);
+            state.activeSectors.add(sec.key);
           }
           state.currentPage = 1;
           renderSectorLegend();
           renderTable();
           drawBacktestChart();
         });
+        container.appendChild(btn);
       });
+
+      const noteEl = document.getElementById('activeSectorFilterNote');
+      if (noteEl) {
+        noteEl.textContent =
+          state.activeSectors.size === GICS_SECTORS.length
+            ? 'All 11 Sectors'
+            : `${state.activeSectors.size} of 11 Sectors Selected`;
+      }
+    }
+
+    function renderTable() {
+      const stocks = getFilteredStocksForSelectedDate();
+      const latestDate = state.filteredHistory.length
+        ? state.filteredHistory[state.filteredHistory.length - 1].date
+        : state.selectedDate;
+      const isHistorical = state.selectedDate && state.selectedDate !== latestDate;
+
+      const titleEl = document.getElementById('tableSectionTitle');
+      const countPill = document.getElementById('tableCountPill');
+      const resetDateBtn = document.getElementById('resetLatestDateBtn');
+      const copyBtnLabel = document.getElementById('copyTableBtnLabel');
+      const selectedBadge = document.getElementById('selectedBarBadge');
+      const btCopyDateLabel = document.getElementById('btCopyDateLabel');
+      const btUniqueHint = document.getElementById('btUniqueCountHint');
+
+      if (titleEl) {
+        titleEl.textContent = isHistorical
+          ? `Backtest Results (${formatDisplayDate(state.selectedDate)})`
+          : 'Current Scan Results';
+      }
+      if (resetDateBtn) {
+        resetDateBtn.classList.toggle('hidden', !isHistorical);
+      }
+      if (countPill) countPill.textContent = `${stocks.length} stocks`;
+      if (copyBtnLabel) copyBtnLabel.textContent = `Copy Symbols (${stocks.length})`;
+      if (selectedBadge) selectedBadge.textContent = formatDisplayDate(state.selectedDate);
+      if (btCopyDateLabel) btCopyDateLabel.textContent = formatShortDate(state.selectedDate);
+      if (btUniqueHint) btUniqueHint.textContent = String(getUniqueBacktestStocks().length);
+
+      const totalPages = Math.max(1, Math.ceil(stocks.length / state.perPage));
+      if (state.currentPage > totalPages) state.currentPage = totalPages;
+      if (state.currentPage < 1) state.currentPage = 1;
+
+      const startIdx = (state.currentPage - 1) * state.perPage;
+      const pageItems = stocks.slice(startIdx, startIdx + state.perPage);
+      const maxGain = Math.max(10, ...stocks.map(s => s.pctChange || 0));
+
+      const tbody = document.getElementById('screenerTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-10 px-4 text-center text-slate-400 text-xs">
+              No US stocks matched your current filter thresholds on ${formatDisplayDate(state.selectedDate)}. Try lowering Daily % Gain or Intraday VWAP Turnover.
+            </td>
+          </tr>
+        `;
+      } else {
+        pageItems.forEach((st, idx) => {
+          const rank = startIdx + idx + 1;
+          const secColor = SECTOR_COLOR_MAP[st.sector] || '#38bdf8';
+          const barWidth = Math.min(100, Math.round(((st.pctChange || 0) / maxGain) * 100));
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-blue-50/40 transition';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${rank}</td>
+            <td class="py-2.5 px-3 font-medium text-blue-600 hover:underline cursor-pointer stock-detail-trigger">
+              ${st.name}
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="font-bold text-blue-600 hover:underline cursor-pointer stock-detail-trigger">${st.symbol}</span>
+              <span class="ml-1 text-[10px] font-medium text-slate-400">${st.exchange || 'NASDAQ'}</span>
+            </td>
+            <td class="py-2.5 px-3 hidden sm:table-cell text-slate-600 capitalize">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${secColor}"></span>
+                <span>${st.sector}</span>
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">${Number(st.price).toFixed(2)}</td>
+            <td class="py-2.5 px-3 text-right font-bold text-emerald-600 relative">
+              <div class="absolute inset-y-1 right-1 bg-emerald-100/70 rounded-xs pointer-events-none" style="width: ${barWidth}%"></div>
+              <span class="relative z-10">+${Number(st.pctChange).toFixed(2)}%</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-medium text-slate-700">${Number(st.volume).toLocaleString('en-US')}</td>
+            <td class="py-2.5 px-3 text-right hidden md:table-cell font-medium text-slate-700">${formatCompactDollar(st.turnover)}</td>
+            <td class="py-2.5 px-3 text-center">
+              <button type="button" class="stock-detail-trigger p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer" title="View 60-Day Chart & Intraday VWAP">
+                <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </button>
+            </td>
+          `;
+          tr.querySelectorAll('.stock-detail-trigger').forEach(el => {
+            el.addEventListener('click', () => openStockDetailModal(st));
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      const pageJumpInput = document.getElementById('pageJumpInput');
+      const summaryText = document.getElementById('paginationSummaryText');
+      const controlsEl = document.getElementById('paginationControls');
+
+      if (pageJumpInput) {
+        pageJumpInput.value = String(state.currentPage);
+        pageJumpInput.max = String(totalPages);
+      }
+      if (summaryText) {
+        const fromNum = stocks.length === 0 ? 0 : startIdx + 1;
+        const toNum = Math.min(stocks.length, startIdx + state.perPage);
+        summaryText.textContent = `${stocks.length} stocks (${fromNum} to ${toNum})`;
+      }
+      if (controlsEl) {
+        controlsEl.innerHTML = '';
+        const makeBtn = (label, targetPage, disabled, active) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = label;
+          b.disabled = disabled;
+          b.className = active
+            ? 'px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-600 text-white'
+            : disabled
+            ? 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 border border-slate-100 cursor-not-allowed'
+            : 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer';
+          if (!disabled && !active) {
+            b.addEventListener('click', () => {
+              state.currentPage = targetPage;
+              renderTable();
+            });
+          }
+          return b;
+        };
+
+        controlsEl.appendChild(makeBtn('« Previous', state.currentPage - 1, state.currentPage <= 1, false));
+        const maxButtons = 5;
+        let pStart = Math.max(1, state.currentPage - 2);
+        let pEnd = Math.min(totalPages, pStart + maxButtons - 1);
+        if (pEnd - pStart < maxButtons - 1) {
+          pStart = Math.max(1, pEnd - maxButtons + 1);
+        }
+        for (let p = pStart; p <= pEnd; p++) {
+          controlsEl.appendChild(makeBtn(String(p), p, false, p === state.currentPage));
+        }
+        controlsEl.appendChild(makeBtn('Next »', state.currentPage + 1, state.currentPage >= totalPages, false));
+      }
     }
 
     // =========================================================================
-    // 8. DRAW INTERACTIVE STACKED BAR CHART (CANVAS)
+    // 7. STACKED BAR BACKTEST HISTORY CHART (CANVAS)
     // =========================================================================
     function drawBacktestChart() {
       const canvas = document.getElementById('backtestChartCanvas');
       if (!canvas) return;
       const parent = canvas.parentElement;
       const dpr = window.devicePixelRatio || 1;
-      const width = parent.clientWidth;
-      const height = parent.clientHeight;
+      const rect = parent.getBoundingClientRect();
+      const width = Math.max(320, rect.width);
+      const height = Math.max(240, rect.height);
 
       canvas.width = width * dpr;
       canvas.height = height * dpr;
@@ -1448,447 +1274,306 @@
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, width, height);
 
-      const visibleDays = getVisibleHistoryWindow();
-      if (visibleDays.length === 0) return;
+      const days = getVisibleHistoryWindow();
+      state.chartBarsMeta = [];
+      if (!days.length) return;
 
-      const dailyBreakdowns = visibleDays.map(day => {
-        const counts = {};
+      const padLeft = 44;
+      const padRight = 18;
+      const padTop = 34;
+      const padBottom = 34;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const dayStacks = days.map(d => {
+        const countsBySector = {};
         let total = 0;
-        day.stocks.forEach(st => {
-          const secKey = st.sector.toLowerCase();
-          if (!state.activeSectors.has(secKey)) return;
-          counts[secKey] = (counts[secKey] || 0) + 1;
-          total++;
+        d.stocks.forEach(st => {
+          if (state.activeSectors.has(st.sector)) {
+            countsBySector[st.sector] = (countsBySector[st.sector] || 0) + 1;
+            total++;
+          }
         });
-        return { date: day.date, counts, total };
+        return { date: d.date, total, countsBySector };
       });
 
-      const rawMax = Math.max(20, ...dailyBreakdowns.map(d => d.total));
-      const yMax = Math.ceil(rawMax / 20) * 20;
+      const rawMax = Math.max(5, ...dayStacks.map(d => d.total));
+      const yStep = rawMax <= 15 ? 5 : rawMax <= 40 ? 10 : rawMax <= 100 ? 20 : 40;
+      const yMax = Math.ceil(rawMax / yStep) * yStep;
 
-      const padLeft = 42;
-      const padRight = 18;
-      const padTop = 18;
-      const padBottom = 32;
-      const plotW = Math.max(50, width - padLeft - padRight);
-      const plotH = Math.max(50, height - padTop - padBottom);
-
+      // Horizontal Gridlines & Y-Axis Labels
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      const stepCount = 5;
-      for (let i = 0; i <= stepCount; i++) {
-        const val = Math.round((yMax / stepCount) * i);
-        const y = padTop + plotH - (val / yMax) * plotH;
-
-        ctx.strokeStyle = i === 0 ? '#cbd5e1' : '#f1f5f9';
+      for (let v = 0; v <= yMax; v += yStep) {
+        const y = padTop + plotH - (v / yMax) * plotH;
+        ctx.strokeStyle = v === 0 ? '#cbd5e1' : '#f1f5f9';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(padLeft, y);
         ctx.lineTo(width - padRight, y);
         ctx.stroke();
 
-        ctx.fillStyle = '#64748b';
-        ctx.fillText(String(val), padLeft - 8, y);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(String(v), padLeft - 8, y);
       }
 
-      const n = dailyBreakdowns.length;
+      const n = dayStacks.length;
       const slotW = plotW / n;
-      const barW = Math.max(2, Math.min(14, slotW * 0.68));
-      state.barHitboxes = [];
+      const barW = Math.max(2, Math.min(18, slotW * 0.68));
 
-      if (state.viewMode === 'bars') {
-        dailyBreakdowns.forEach((day, idx) => {
-          const centerX = padLeft + idx * slotW + slotW / 2;
-          const x = centerX - barW / 2;
-          let currentBottomY = padTop + plotH;
-
-          if (day.date === state.selectedDate) {
-            ctx.fillStyle = 'rgba(37, 99, 235, 0.10)';
-            ctx.fillRect(padLeft + idx * slotW, padTop, slotW, plotH);
-          } else if (idx === state.hoveredBarIndex) {
-            ctx.fillStyle = 'rgba(148, 163, 184, 0.12)';
-            ctx.fillRect(padLeft + idx * slotW, padTop, slotW, plotH);
-          }
-
-          GICS_SECTORS.forEach(sec => {
-            const cnt = day.counts[sec.key] || 0;
-            if (cnt <= 0) return;
-            const segH = (cnt / yMax) * plotH;
-            ctx.fillStyle = sec.color;
-            ctx.fillRect(x, currentBottomY - segH, barW, Math.max(1, segH - 0.5));
-            currentBottomY -= segH;
-          });
-
-          state.barHitboxes.push({
-            idx,
-            date: day.date,
-            xStart: padLeft + idx * slotW,
-            xEnd: padLeft + (idx + 1) * slotW,
-            centerX,
-            total: day.total,
-            counts: day.counts
-          });
-        });
-      } else {
+      if (state.viewMode === 'stocks') {
+        // Line + Area Mode
         ctx.beginPath();
-        dailyBreakdowns.forEach((day, idx) => {
-          const cx = padLeft + idx * slotW + slotW / 2;
-          const cy = padTop + plotH - (day.total / yMax) * plotH;
-          if (idx === 0) ctx.moveTo(cx, cy);
+        dayStacks.forEach((d, i) => {
+          const cx = padLeft + i * slotW + slotW / 2;
+          const cy = padTop + plotH - (d.total / yMax) * plotH;
+          if (i === 0) ctx.moveTo(cx, cy);
           else ctx.lineTo(cx, cy);
+          state.chartBarsMeta.push({
+            x: padLeft + i * slotW,
+            w: slotW,
+            y: cy,
+            h: padTop + plotH - cy,
+            data: d
+          });
         });
-        ctx.strokeStyle = '#7c3aed';
+        ctx.strokeStyle = '#6366f1';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        const lastX = padLeft + (n - 1) * slotW + slotW / 2;
-        const firstX = padLeft + slotW / 2;
-        ctx.lineTo(lastX, padTop + plotH);
-        ctx.lineTo(firstX, padTop + plotH);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-        grad.addColorStop(0, 'rgba(124, 58, 237, 0.22)');
-        grad.addColorStop(1, 'rgba(124, 58, 237, 0.01)');
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        dailyBreakdowns.forEach((day, idx) => {
-          const centerX = padLeft + idx * slotW + slotW / 2;
-          const cy = padTop + plotH - (day.total / yMax) * plotH;
-          if (day.date === state.selectedDate || idx === state.hoveredBarIndex) {
+        dayStacks.forEach((d, i) => {
+          const cx = padLeft + i * slotW + slotW / 2;
+          const cy = padTop + plotH - (d.total / yMax) * plotH;
+          const isSelected = d.date === state.selectedDate;
+          if (isSelected || n <= 65) {
             ctx.beginPath();
-            ctx.arc(centerX, cy, 4.5, 0, Math.PI * 2);
-            ctx.fillStyle = day.date === state.selectedDate ? '#2563eb' : '#7c3aed';
+            ctx.arc(cx, cy, isSelected ? 4.5 : 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = isSelected ? '#2563eb' : '#6366f1';
             ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
           }
-          state.barHitboxes.push({
-            idx,
-            date: day.date,
-            xStart: padLeft + idx * slotW,
-            xEnd: padLeft + (idx + 1) * slotW,
-            centerX,
-            total: day.total,
-            counts: day.counts
+        });
+      } else {
+        // Stacked Bars Mode
+        dayStacks.forEach((d, i) => {
+          const x = padLeft + i * slotW + (slotW - barW) / 2;
+          let currentBottomY = padTop + plotH;
+
+          GICS_SECTORS.forEach(sec => {
+            const cnt = d.countsBySector[sec.key] || 0;
+            if (cnt <= 0) return;
+            const segH = (cnt / yMax) * plotH;
+            ctx.fillStyle = sec.color;
+            ctx.fillRect(x, currentBottomY - segH, barW, segH);
+            currentBottomY -= segH;
+          });
+
+          const totalH = padTop + plotH - currentBottomY;
+          if (d.date === state.selectedDate) {
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x - 1, currentBottomY - 1, barW + 2, totalH + 1);
+          }
+
+          state.chartBarsMeta.push({
+            x: padLeft + i * slotW,
+            w: slotW,
+            y: currentBottomY,
+            h: totalH,
+            data: d
           });
         });
       }
 
-      ctx.fillStyle = '#64748b';
-      ctx.font = '10px Inter, sans-serif';
+      // X-Axis Date Labels
+      ctx.fillStyle = '#94a3b8';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const labelStep = Math.max(1, Math.floor(n / (width < 640 ? 5 : 10)));
-      dailyBreakdowns.forEach((day, idx) => {
-        if (idx % labelStep === 0 || idx === n - 1) {
-          const cx = padLeft + idx * slotW + slotW / 2;
-          ctx.fillText(formatShortAxisDate(day.date), cx, padTop + plotH + 8);
+      const labelEvery = Math.max(1, Math.ceil(n / 8));
+      dayStacks.forEach((d, i) => {
+        if (i % labelEvery === 0 || i === n - 1) {
+          const cx = padLeft + i * slotW + slotW / 2;
+          ctx.fillText(formatShortDate(d.date), cx, padTop + plotH + 8);
         }
       });
     }
 
-    function initChartInteractions() {
-      const canvas = document.getElementById('backtestChartCanvas');
-      const tooltip = document.getElementById('chartHoverTooltip');
-
-      function handlePointerMove(clientX, clientY) {
-        const rect = canvas.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const hit = state.barHitboxes.find(b => x >= b.xStart && x <= b.xEnd);
-
-        if (!hit) {
-          if (state.hoveredBarIndex !== -1) {
-            state.hoveredBarIndex = -1;
-            drawBacktestChart();
-          }
-          tooltip.classList.add('hidden');
-          return;
-        }
-
-        if (state.hoveredBarIndex !== hit.idx) {
-          state.hoveredBarIndex = hit.idx;
-          drawBacktestChart();
-        }
-
-        const topSectors = Object.entries(hit.counts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4);
-
-        tooltip.innerHTML = `
-          <div class="font-bold text-white border-b border-slate-700 pb-1 mb-1.5 flex items-center justify-between gap-4">
-            <span>${formatDisplayDate(hit.date)}</span>
-            <span class="text-emerald-400">${hit.total} stocks</span>
-          </div>
-          <div class="space-y-1 text-[11px]">
-            ${topSectors.map(([sec, cnt]) => `
-              <div class="flex items-center justify-between gap-3">
-                <span class="inline-flex items-center gap-1.5 capitalize text-slate-200">
-                  <span class="w-2 h-2 rounded-full" style="background-color:${SECTOR_COLOR_MAP[sec] || '#94a3b8'}"></span>
-                  ${sec}
-                </span>
-                <span class="font-semibold text-white">${cnt}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="mt-1.5 pt-1 border-t border-slate-800 text-[10px] text-blue-300">
-            Click bar to load stocks in table
-          </div>
-        `;
-
-        tooltip.classList.remove('hidden');
-        const tipW = tooltip.offsetWidth || 200;
-        const leftPos = Math.min(rect.width - tipW - 12, Math.max(12, hit.centerX - tipW / 2));
-        tooltip.style.left = `${leftPos}px`;
-        tooltip.style.top = '12px';
-      }
-
-      canvas.addEventListener('mousemove', e => handlePointerMove(e.clientX, e.clientY));
-      canvas.addEventListener('mouseleave', () => {
-        state.hoveredBarIndex = -1;
-        tooltip.classList.add('hidden');
-        drawBacktestChart();
-      });
-
-      canvas.addEventListener('click', e => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const hit = state.barHitboxes.find(b => x >= b.xStart && x <= b.xEnd);
-        if (hit) {
-          state.selectedDate = hit.date;
-          state.currentPage = 1;
-          renderTable();
-          drawBacktestChart();
-          showToast(`Loaded ${hit.total} matching stocks from ${formatDisplayDate(hit.date)}`);
-        }
-      });
-
-      canvas.addEventListener('touchstart', e => {
-        if (e.touches.length > 0) {
-          const t = e.touches[0];
-          const rect = canvas.getBoundingClientRect();
-          const x = t.clientX - rect.left;
-          const hit = state.barHitboxes.find(b => x >= b.xStart && x <= b.xEnd);
-          if (hit) {
-            state.selectedDate = hit.date;
-            state.currentPage = 1;
-            renderTable();
-            drawBacktestChart();
-            handlePointerMove(t.clientX, t.clientY);
-          }
-        }
-      }, { passive: true });
-    }
-
     // =========================================================================
-    // 9. STOCK 60-DAY CANDLESTICK & INTRADAY VWAP MODAL
+    // 8. 60-DAY CANDLESTICK & INTRADAY VWAP MODAL
     // =========================================================================
-    window.openStockModal = function (symbol) {
-      const dayStocks = getFilteredStocksForSelectedDate();
-      const stock = dayStocks.find(s => s.symbol === symbol) || {
-        symbol,
-        name: symbol,
-        exchange: 'NASDAQ',
-        sector: 'technology',
-        price: 125.4,
-        intradayVwap: 123.9,
-        pctChange: 5.4,
-        volume: 12450000,
-        turnover: 1542555000,
-        mktCapM: 45000
-      };
+    function openStockDetailModal(stock) {
+      const modal = document.getElementById('stockDetailModal');
+      if (!modal) return;
 
       document.getElementById('modalStockTitle').textContent = `${stock.name} (${stock.symbol})`;
-      document.getElementById('modalStockSector').textContent = stock.sector.toUpperCase();
-      document.getElementById('modalStockSubtitle').textContent =
-        `${stock.exchange || 'NASDAQ'} • Triggered on ${formatDisplayDate(state.selectedDate)} • Intraday VWAP Breakout`;
+      const secEl = document.getElementById('modalStockSector');
+      secEl.textContent = stock.sector;
+      secEl.style.textTransform = 'capitalize';
+      document.getElementById('modalStockSubtitle').textContent = `${stock.exchange || 'NASDAQ'} • Triggered on ${formatDisplayDate(state.selectedDate)}`;
 
-      document.getElementById('modalMetricsGrid').innerHTML = `
-        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-          <div class="text-slate-400 text-[11px]">Close / Trigger Price</div>
-          <div class="font-bold text-slate-900 text-sm mt-0.5">$${stock.price.toFixed(2)} <span class="text-emerald-600 text-xs">(+${stock.pctChange.toFixed(2)}%)</span></div>
+      const metricsGrid = document.getElementById('modalMetricsGrid');
+      metricsGrid.innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div class="text-[11px] text-slate-500">Close / Trigger Price</div>
+          <div class="text-sm font-bold text-slate-900 mt-0.5">$${Number(stock.price).toFixed(2)} <span class="text-emerald-600 text-xs font-semibold">(+${Number(stock.pctChange).toFixed(2)}%)</span></div>
         </div>
-        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-          <div class="text-slate-400 text-[11px]">True Intraday VWAP</div>
-          <div class="font-bold text-blue-700 text-sm mt-0.5">$${(stock.intradayVwap || stock.price * 0.99).toFixed(2)}</div>
+        <div class="p-3 rounded-xl bg-blue-50/60 border border-blue-200/80">
+          <div class="text-[11px] text-blue-700 font-medium">True Intraday VWAP</div>
+          <div class="text-sm font-bold text-blue-900 mt-0.5">$${Number(stock.intradayVwap || stock.price).toFixed(2)}</div>
         </div>
-        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-          <div class="text-slate-400 text-[11px]">Session Volume</div>
-          <div class="font-bold text-slate-900 text-sm mt-0.5">${stock.volume.toLocaleString('en-US')}</div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div class="text-[11px] text-slate-500">Session Volume</div>
+          <div class="text-sm font-bold text-slate-900 mt-0.5">${Number(stock.volume).toLocaleString('en-US')} <span class="text-xs font-medium text-slate-500">(${stock.volMult}x)</span></div>
         </div>
-        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-          <div class="text-slate-400 text-[11px]">VWAP Dollar Turnover</div>
-          <div class="font-bold text-slate-900 text-sm mt-0.5">${formatCompactDollar(stock.turnover)}</div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div class="text-[11px] text-slate-500">VWAP Dollar Turnover</div>
+          <div class="text-sm font-bold text-slate-900 mt-0.5">${formatCompactDollar(stock.turnover)}</div>
         </div>
       `;
 
-      document.getElementById('stockDetailModal').classList.remove('hidden');
-      setTimeout(() => drawCandlestickChart(stock), 20);
-    };
+      modal.classList.remove('hidden');
 
-    function drawCandlestickChart(stock) {
-      const canvas = document.getElementById('candlestickCanvas');
-      if (!canvas) return;
-      const parent = canvas.parentElement;
-      const dpr = window.devicePixelRatio || 1;
-      const width = parent.clientWidth;
-      const height = parent.clientHeight;
-
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, width, height);
-
-      let candles = [];
-      const realSeries = state.realCandles && state.realCandles[stock.symbol];
-      if (Array.isArray(realSeries) && realSeries.length >= 10) {
-        candles = realSeries.map((bar, idx) => ({
-          o: bar.o,
-          h: bar.h,
-          l: bar.l,
-          c: bar.c,
-          v: bar.v,
-          isTrigger: bar.date === state.selectedDate || idx === realSeries.length - 1
-        }));
-      } else {
-        const rand = seededRandom(stock.symbol.split('').reduce((a, c) => a + c.charCodeAt(0), 100));
-        let prevClose = stock.price / (1 + stock.pctChange / 100);
-
-        for (let i = 58; i >= 1; i--) {
-          const move = (rand() - 0.49) * 0.032;
-          const c = +(prevClose * (1 + move)).toFixed(2);
-          const o = +(prevClose * (1 + (rand() - 0.5) * 0.012)).toFixed(2);
-          const h = +(Math.max(o, c) * (1 + rand() * 0.015)).toFixed(2);
-          const l = +(Math.min(o, c) * (1 - rand() * 0.015)).toFixed(2);
-          const v = Math.round((stock.volume / (stock.volMult || 2)) * (0.6 + rand() * 0.8));
-          candles.unshift({ o, h, l, c, v, isTrigger: false });
-          prevClose = o;
+      let candles = state.realCandles[stock.symbol];
+      if (!candles || candles.length < 10) {
+        const rand = seededRandom(stock.symbol.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 100));
+        candles = [];
+        let p = stock.price * 0.78;
+        for (let i = 59; i >= 0; i--) {
+          const isLast = i === 0;
+          const o = isLast ? stock.price / (1 + stock.pctChange / 100) : p;
+          const c = isLast ? stock.price : o * (0.975 + rand() * 0.055);
+          const h = Math.max(o, c) * (1 + rand() * 0.025);
+          const l = Math.min(o, c) * (1 - rand() * 0.025);
+          const vwap = isLast ? (stock.intradayVwap || c) : (h + l + c) / 3;
+          candles.push({ date: '', o, h, l, c, vwap });
+          p = c;
         }
-
-        const trigOpen = +(stock.price / (1 + stock.pctChange / 100)).toFixed(2);
-        candles.push({
-          o: trigOpen,
-          h: +(stock.price * 1.012).toFixed(2),
-          l: +(trigOpen * 0.992).toFixed(2),
-          c: stock.price,
-          v: stock.volume,
-          isTrigger: true
-        });
       }
 
-      const padL = 48, padR = 16, padT = 16, padB = 24;
-      const priceH = (height - padT - padB) * 0.72;
-      const volH = (height - padT - padB) * 0.22;
-      const volTop = padT + priceH + 10;
-      const plotW = width - padL - padR;
+      requestAnimationFrame(() => drawCandlestickChart(candles, stock.intradayVwap || stock.price));
+    }
 
-      const minP = Math.min(...candles.map(c => c.l)) * 0.99;
-      const maxP = Math.max(...candles.map(c => c.h)) * 1.01;
-      const maxV = Math.max(...candles.map(c => c.v));
+    function drawCandlestickChart(candles, latestVwap) {
+      const canvas = document.getElementById('candlestickCanvas');
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(300, rect.width - 16);
+      const h = Math.max(220, rect.height - 16);
+
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      const padL = 48;
+      const padR = 16;
+      const padT = 16;
+      const padB = 24;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      const minP = Math.min(...candles.map(c => c.l)) * 0.98;
+      const maxP = Math.max(...candles.map(c => c.h)) * 1.02;
+      const spanP = Math.max(0.01, maxP - minP);
+
+      const yOf = price => padT + plotH - ((price - minP) / spanP) * plotH;
 
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       for (let i = 0; i <= 4; i++) {
-        const pVal = minP + ((maxP - minP) / 4) * i;
-        const y = padT + priceH - ((pVal - minP) / (maxP - minP)) * priceH;
+        const val = minP + (spanP * i) / 4;
+        const y = yOf(val);
         ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(padL, y);
-        ctx.lineTo(width - padR, y);
+        ctx.lineTo(w - padR, y);
         ctx.stroke();
+
         ctx.fillStyle = '#64748b';
-        ctx.fillText(`$${pVal.toFixed(1)}`, padL - 6, y);
+        ctx.fillText(`$${val.toFixed(2)}`, padL - 6, y);
       }
 
-      const stepW = plotW / candles.length;
-      const bodyW = Math.max(3, stepW * 0.62);
+      const slotW = plotW / candles.length;
+      const bodyW = Math.max(3, slotW * 0.6);
 
       candles.forEach((c, idx) => {
-        const cx = padL + idx * stepW + stepW / 2;
-        const bullish = c.c >= c.o;
-        const color = bullish ? '#10b981' : '#ef4444';
-
-        if (c.isTrigger) {
-          ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
-          ctx.fillRect(padL + idx * stepW, padT, stepW, height - padT - padB);
-        }
-
-        const yH = padT + priceH - ((c.h - minP) / (maxP - minP)) * priceH;
-        const yL = padT + priceH - ((c.l - minP) / (maxP - minP)) * priceH;
-        const yO = padT + priceH - ((c.o - minP) / (maxP - minP)) * priceH;
-        const yC = padT + priceH - ((c.c - minP) / (maxP - minP)) * priceH;
+        const cx = padL + idx * slotW + slotW / 2;
+        const isUp = c.c >= c.o;
+        const color = isUp ? '#10b981' : '#ef4444';
 
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.moveTo(cx, yH);
-        ctx.lineTo(cx, yL);
+        ctx.moveTo(cx, yOf(c.h));
+        ctx.lineTo(cx, yOf(c.l));
         ctx.stroke();
 
+        const topY = yOf(Math.max(c.o, c.c));
+        const botY = yOf(Math.min(c.o, c.c));
         ctx.fillStyle = color;
-        ctx.fillRect(cx - bodyW / 2, Math.min(yO, yC), bodyW, Math.max(2, Math.abs(yC - yO)));
+        ctx.fillRect(cx - bodyW / 2, topY, bodyW, Math.max(1.5, botY - topY));
 
-        const vh = (c.v / maxV) * volH;
-        ctx.fillStyle = c.isTrigger ? '#2563eb' : (bullish ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.45)');
-        ctx.fillRect(cx - bodyW / 2, volTop + volH - vh, bodyW, vh);
+        if (idx === candles.length - 1 && latestVwap) {
+          const vy = yOf(latestVwap);
+          ctx.beginPath();
+          ctx.arc(cx, vy, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#2563eb';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
       });
-
-      const vwapVal = stock.intradayVwap || stock.price * 0.99;
-      const vwapY = padT + priceH - ((vwapVal - minP) / (maxP - minP)) * priceH;
-      const lastCx = padL + (candles.length - 1) * stepW + stepW / 2;
-      ctx.fillStyle = '#2563eb';
-      ctx.beginPath();
-      ctx.arc(lastCx, vwapY, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = 'bold 10px Inter, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(`Intraday VWAP $${vwapVal.toFixed(2)}`, lastCx - 8, vwapY);
     }
 
     // =========================================================================
-    // 10. EVENT LISTENERS & INITIALIZATION
+    // 9. INITIALIZATION & EVENT LISTENERS
     // =========================================================================
-    window.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
       applyScanFilters();
       renderSectorLegend();
       renderTable();
       drawBacktestChart();
-      initChartInteractions();
-      tryAutoLoadCloudEodJson();
+      autoFetchCloudEod();
 
-      // Toggle Scan Filter Panel Visibility
-      const scanSection = document.getElementById('scanFilterSection');
+      // Show/Hide Filter Panel
+      const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+      const scanFilterSection = document.getElementById('scanFilterSection');
       const toggleFiltersLabel = document.getElementById('toggleFiltersLabel');
-      document.getElementById('toggleFiltersBtn').addEventListener('click', () => {
-        const isHidden = scanSection.classList.toggle('hidden');
-        toggleFiltersLabel.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
-      });
+      if (toggleFiltersBtn && scanFilterSection) {
+        toggleFiltersBtn.addEventListener('click', () => {
+          const isHidden = scanFilterSection.classList.toggle('hidden');
+          if (toggleFiltersLabel) {
+            toggleFiltersLabel.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
+          }
+        });
+      }
 
-      // Run Scan, Live Instant Filter Inputs & Reset Defaults
+      // Live Filter Input Handler
       function syncFilterInputsAndRefresh(showFeedbackToast = false) {
-        const rawVolMult = parseFloat(document.getElementById('inputVolMult').value);
-        const rawMinEmaVol = parseInt(document.getElementById('inputMinEmaVol').value, 10);
-        const rawMinGain = parseFloat(document.getElementById('inputMinGain').value);
-        const rawMinPrice = parseFloat(document.getElementById('inputMinPrice').value);
-        const rawMinMktCap = parseFloat(document.getElementById('inputMinMktCap').value);
-        const rawMinTurnover = parseFloat(document.getElementById('inputMinTurnover').value);
+        const vMult = parseFloat(document.getElementById('inputVolMult').value);
+        const vEma = parseFloat(document.getElementById('inputMinEmaVol').value);
+        const vGain = parseFloat(document.getElementById('inputMinGain').value);
+        const vPrice = parseFloat(document.getElementById('inputMinPrice').value);
+        const vCap = parseFloat(document.getElementById('inputMinMktCap').value);
+        const vTurn = parseFloat(document.getElementById('inputMinTurnover').value);
 
-        state.filters.volMult = Number.isFinite(rawVolMult) && rawVolMult >= 0 ? rawVolMult : 1.5;
-        state.filters.minEmaVol = Number.isFinite(rawMinEmaVol) && rawMinEmaVol >= 0 ? rawMinEmaVol : 15000;
-        state.filters.minGain = Number.isFinite(rawMinGain) && rawMinGain >= 0 ? rawMinGain : 3.0;
-        state.filters.minPrice = Number.isFinite(rawMinPrice) && rawMinPrice >= 0 ? rawMinPrice : 2.0;
-        state.filters.minMktCap = Number.isFinite(rawMinMktCap) && rawMinMktCap >= 0 ? rawMinMktCap : 300;
-        state.filters.minTurnoverM = Number.isFinite(rawMinTurnover) && rawMinTurnover >= 0 ? rawMinTurnover : 5.0;
+        state.filters.volMult = isNaN(vMult) ? 1.5 : vMult;
+        state.filters.minEmaVol = isNaN(vEma) ? 15000 : vEma;
+        state.filters.minGain = isNaN(vGain) ? 3.0 : vGain;
+        state.filters.minPrice = isNaN(vPrice) ? 2.0 : vPrice;
+        state.filters.minMktCap = isNaN(vCap) ? 300 : vCap;
+        state.filters.minTurnoverM = isNaN(vTurn) ? 5.0 : vTurn;
 
+        state.currentPage = 1;
         applyScanFilters();
+        updateCaptureFloorWarning();
         renderTable();
         drawBacktestChart();
-        updateDatasetFloorBanner();
 
         if (showFeedbackToast) {
           const count = getFilteredStocksForSelectedDate().length;
@@ -1921,6 +1606,58 @@
         document.getElementById('inputMinMktCap').value = '300';
         document.getElementById('inputMinTurnover').value = '5.0';
         syncFilterInputsAndRefresh(true);
+      });
+
+      // Backtest Bar Canvas Hover Tooltip & Click Drill-Down
+      const chartCanvas = document.getElementById('backtestChartCanvas');
+      const tooltipEl = document.getElementById('chartHoverTooltip');
+
+      chartCanvas.addEventListener('mousemove', e => {
+        const rect = chartCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const hit = state.chartBarsMeta.find(b => mx >= b.x && mx <= b.x + b.w);
+        if (!hit) {
+          tooltipEl.classList.add('hidden');
+          return;
+        }
+        const rows = GICS_SECTORS
+          .filter(s => (hit.data.countsBySector[s.key] || 0) > 0)
+          .map(s => `
+            <div class="flex items-center justify-between gap-3 text-[11px]">
+              <span class="inline-flex items-center gap-1.5 capitalize text-slate-300">
+                <span class="w-2 h-2 rounded-full" style="background:${s.color}"></span>${s.label}
+              </span>
+              <span class="font-semibold text-white">${hit.data.countsBySector[s.key]}</span>
+            </div>
+          `).join('');
+
+        tooltipEl.innerHTML = `
+          <div class="font-bold text-white border-b border-slate-700 pb-1 mb-1.5 flex items-center justify-between">
+            <span>${formatDisplayDate(hit.data.date)}</span>
+            <span class="text-blue-400">${hit.data.total} stocks</span>
+          </div>
+          <div class="space-y-1">${rows || '<div class="text-slate-400 text-[11px]">0 matching stocks</div>'}</div>
+        `;
+        tooltipEl.classList.remove('hidden');
+        const leftPos = Math.min(rect.width - 210, Math.max(12, mx + 12));
+        tooltipEl.style.left = `${leftPos}px`;
+        tooltipEl.style.top = '16px';
+      });
+
+      chartCanvas.addEventListener('mouseleave', () => {
+        tooltipEl.classList.add('hidden');
+      });
+
+      chartCanvas.addEventListener('click', e => {
+        const rect = chartCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const hit = state.chartBarsMeta.find(b => mx >= b.x && mx <= b.x + b.w);
+        if (!hit) return;
+        state.selectedDate = hit.data.date;
+        state.currentPage = 1;
+        renderTable();
+        drawBacktestChart();
+        showToast(`Loaded ${hit.data.total} US stocks for ${formatDisplayDate(hit.data.date)}`);
       });
 
       // Top Nav Shortcuts
@@ -2205,6 +1942,14 @@
       document.getElementById('closeStockModalBtn').addEventListener('click', () => stockModal.classList.add('hidden'));
       stockModal.addEventListener('click', e => {
         if (e.target === stockModal) stockModal.classList.add('hidden');
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          stockModal.classList.add('hidden');
+          copyListModal.classList.add('hidden');
+          closeAllDropdownMenus();
+        }
       });
 
       // Manual EOD JSON File Loader
