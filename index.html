@@ -191,9 +191,18 @@
               <span class="text-slate-400 font-semibold">&ge;</span>
               <span class="text-slate-500">$ Million</span>
             </div>
-            <input id="inputMinTurnover" type="number" step="1" min="0.5" value="5.0"
+            <input id="inputMinTurnover" type="number" step="0.5" min="0.5" value="5.0"
               class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
           </div>
+        </div>
+
+        <!-- Live Interactive Filter Status & Dataset Floor Notice -->
+        <div class="pt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Live filter active &mdash; editing any value above updates results &amp; chart immediately.</span>
+          </span>
+          <span id="datasetFloorNotice" class="hidden text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md font-medium"></span>
         </div>
       </div>
     </section>
@@ -867,28 +876,55 @@ SECTOR_MAP = {
 
 def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
     print("[1/5] Fetching official NYSE & NASDAQ symbol lists...")
-    headers = {"User-Agent": "Mozilla/5.0"}
+    universe = pd.DataFrame()
 
-    nasdaq_url = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
-    r_nas = requests.get(nasdaq_url, headers=headers, timeout=20)
-    r_nas.raise_for_status()
-    df_nas = pd.read_csv(io.StringIO(r_nas.text), sep="|")
-    df_nas = df_nas[df_nas["Symbol"].notna() & ~df_nas["Symbol"].str.contains("File Creation Time", na=False)]
-    df_nas = df_nas[(df_nas["Test Issue"] == "N") & (df_nas["ETF"] == "N")].copy()
-    df_nas["Exchange"] = "NASDAQ"
-    df_nas = df_nas[["Symbol", "Security Name", "Exchange"]]
+    try:
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/plain,text/html,application/xhtml+xml,*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        nasdaq_url = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+        r_nas = requests.get(nasdaq_url, headers=browser_headers, timeout=20)
+        r_nas.raise_for_status()
+        df_nas = pd.read_csv(io.StringIO(r_nas.text), sep="|")
+        df_nas = df_nas[df_nas["Symbol"].notna() & ~df_nas["Symbol"].str.contains("File Creation Time", na=False)]
+        df_nas = df_nas[(df_nas["Test Issue"] == "N") & (df_nas["ETF"] == "N")].copy()
+        df_nas["Exchange"] = "NASDAQ"
+        df_nas = df_nas[["Symbol", "Security Name", "Exchange"]]
 
-    other_url = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
-    r_oth = requests.get(other_url, headers=headers, timeout=20)
-    r_oth.raise_for_status()
-    df_oth = pd.read_csv(io.StringIO(r_oth.text), sep="|")
-    df_oth = df_oth[df_oth["ACT Symbol"].notna() & ~df_oth["ACT Symbol"].str.contains("File Creation Time", na=False)]
-    df_oth = df_oth[(df_oth["Test Issue"] == "N") & (df_oth["ETF"] == "N")].copy()
-    df_oth = df_oth[df_oth["Exchange"].isin(["N", "A", "P"])].copy()
-    df_oth["Exchange"] = df_oth["Exchange"].map({"N": "NYSE", "A": "NYSE", "P": "NYSE"})
-    df_oth = df_oth.rename(columns={"ACT Symbol": "Symbol"})[["Symbol", "Security Name", "Exchange"]]
+        other_url = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+        r_oth = requests.get(other_url, headers=browser_headers, timeout=20)
+        r_oth.raise_for_status()
+        df_oth = pd.read_csv(io.StringIO(r_oth.text), sep="|")
+        df_oth = df_oth[df_oth["ACT Symbol"].notna() & ~df_oth["ACT Symbol"].str.contains("File Creation Time", na=False)]
+        df_oth = df_oth[(df_oth["Test Issue"] == "N") & (df_oth["ETF"] == "N")].copy()
+        df_oth = df_oth[df_oth["Exchange"].isin(["N", "A", "P"])].copy()
+        df_oth["Exchange"] = df_oth["Exchange"].map({"N": "NYSE", "A": "NYSE", "P": "NYSE"})
+        df_oth = df_oth.rename(columns={"ACT Symbol": "Symbol"})[["Symbol", "Security Name", "Exchange"]]
 
-    universe = pd.concat([df_nas, df_oth], ignore_index=True).drop_duplicates(subset=["Symbol"])
+        universe = pd.concat([df_nas, df_oth], ignore_index=True).drop_duplicates(subset=["Symbol"])
+        print("      Loaded symbol list from NASDAQ Trader.")
+    except Exception as exc:
+        print(f"      NASDAQ Trader unavailable on cloud runner ({exc}). Switching to US SEC EDGAR...")
+
+    if universe.empty:
+        sec_headers = {
+            "User-Agent": "USMarketScreener/1.0 (contact@usmarketscreener.org)",
+            "Accept": "application/json",
+        }
+        sec_url = "https://www.sec.gov/files/company_tickers_exchange.json"
+        r_sec = requests.get(sec_url, headers=sec_headers, timeout=25)
+        r_sec.raise_for_status()
+        payload = r_sec.json()
+        df_sec = pd.DataFrame(payload["data"], columns=payload["fields"])
+        df_sec = df_sec[df_sec["exchange"].isin(["Nasdaq", "NYSE"])].copy()
+        df_sec["Exchange"] = df_sec["exchange"].map({"Nasdaq": "NASDAQ", "NYSE": "NYSE"})
+        df_sec = df_sec.rename(columns={"ticker": "Symbol", "name": "Security Name"})[
+            ["Symbol", "Security Name", "Exchange"]
+        ]
+        universe = df_sec.drop_duplicates(subset=["Symbol"])
+        print("      Loaded symbol list from US SEC EDGAR.")
 
     def is_clean_common_ticker(sym: str) -> bool:
         if not isinstance(sym, str):
@@ -955,11 +991,11 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
 def prefilter_candidates(
     daily_data: Dict[str, pd.DataFrame],
     backtest_days: int = 189,
-    vol_mult_min: float = 1.5,
-    ema_vol30_min: float = 15000.0,
-    pct_gain_min: float = 3.0,
-    close_min: float = 2.0,
-    turnover_min: float = 5_000_000.0,
+    vol_mult_min: float = 1.2,
+    ema_vol30_min: float = 10000.0,
+    pct_gain_min: float = 2.0,
+    close_min: float = 1.0,
+    turnover_min: float = 1_000_000.0,
 ) -> Dict[str, pd.DataFrame]:
     print("[3/5] Evaluating daily volume, % gain, and liquidity rules...")
     candidates: Dict[str, pd.DataFrame] = {}
@@ -995,7 +1031,7 @@ def prefilter_candidates(
 
 def fetch_fundamentals_and_true_intraday_vwap(
     candidates: Dict[str, pd.DataFrame],
-    min_mkt_cap_m: float = 300.0,
+    min_mkt_cap_m: float = 150.0,
 ):
     print(f"[4/5] Checking Market Cap > ${min_mkt_cap_m:.0f}M & Sector metadata...")
     qualified_meta: Dict[str, dict] = {}
@@ -1085,7 +1121,7 @@ def build_json_payload(
     candidates: Dict[str, pd.DataFrame],
     qualified_meta: Dict[str, dict],
     true_vwap_map: Dict[str, Dict[str, float]],
-    turnover_min: float = 5_000_000.0,
+    turnover_min: float = 1_000_000.0,
 ) -> dict:
     name_lookup = dict(zip(universe["Symbol"], universe["CleanName"]))
     exch_lookup = dict(zip(universe["Symbol"], universe["Exchange"]))
@@ -1133,6 +1169,7 @@ def build_json_payload(
                     "volMult": round(float(row["vol_mult"]), 2),
                     "mktCapM": meta["mktCapM"],
                     "turnover": int(row["final_turnover_day"]),
+                    "turnover20d": int(row["final_turnover_20d"]),
                 }
             )
 
@@ -1169,6 +1206,13 @@ def build_json_payload(
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latestTradingDate": latest_date_str,
         "source": "Yahoo Finance EOD + 5m Intraday VWAP",
+        "captureFloor": {
+            "minTurnoverM": 1.0,
+            "minGain": 2.0,
+            "volMult": 1.2,
+            "minPrice": 1.0,
+            "minMktCapM": 150.0,
+        },
         "history": history_list,
         "candles": candles_dict,
     }
@@ -1183,7 +1227,7 @@ def main() -> None:
     universe = fetch_us_common_stocks(max_symbols=args.max_symbols)
     daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=250)
     candidates = prefilter_candidates(daily_data, backtest_days=args.days)
-    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(candidates, min_mkt_cap_m=300.0)
+    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(candidates, min_mkt_cap_m=150.0)
     payload = build_json_payload(universe, candidates, qualified_meta, true_vwap_map)
 
     with open(args.output, "w", encoding="utf-8") as f:
@@ -1413,6 +1457,7 @@ if __name__ == "__main__":
       },
       filteredHistory: [],
       realCandles: {},
+      datasetFloor: null,
       selectedDate: '',
       activeSectors: new Set(GICS_SECTORS.map(s => s.key)),
       searchQuery: '',
@@ -1431,6 +1476,30 @@ if __name__ == "__main__":
     // =========================================================================
     // 5. FILTER EVALUATION, CLOUD DATA LOADER & HELPERS
     // =========================================================================
+    function updateDatasetFloorBanner() {
+      const notice = document.getElementById('datasetFloorNotice');
+      if (!notice) return;
+      if (!state.datasetFloor) {
+        notice.classList.add('hidden');
+        return;
+      }
+      const fl = state.datasetFloor;
+      const f = state.filters;
+      const belowFloor =
+        f.minTurnoverM < fl.minTurnoverM ||
+        f.minGain < fl.minGain ||
+        f.volMult < fl.volMult ||
+        f.minPrice < fl.minPrice ||
+        f.minMktCap < fl.minMktCapM;
+
+      if (belowFloor) {
+        notice.textContent = `Note: Cloud EOD snapshot includes stocks down to $${fl.minTurnoverM}M turnover, ${fl.minGain}% gain, ${fl.volMult}x vol, $${fl.minMktCapM}M cap.`;
+        notice.classList.remove('hidden');
+      } else {
+        notice.classList.add('hidden');
+      }
+    }
+
     function loadParsedEodDataset(parsed, sourceLabelPrefix = 'Live EOD') {
       if (!parsed || !Array.isArray(parsed.history) || parsed.history.length === 0) {
         return false;
@@ -1438,12 +1507,20 @@ if __name__ == "__main__":
 
       rawHistory = parsed.history;
       state.realCandles = parsed.candles || {};
+      state.datasetFloor = parsed.captureFloor || {
+        minTurnoverM: 1.0,
+        minGain: 2.0,
+        volMult: 1.2,
+        minPrice: 1.0,
+        minMktCapM: 150
+      };
       state.selectedDate = rawHistory[rawHistory.length - 1].date;
       state.currentPage = 1;
 
       applyScanFilters();
       renderTable();
       drawBacktestChart();
+      updateDatasetFloorBanner();
 
       const badge = document.getElementById('dataSourceBadge');
       const dot = document.getElementById('dataSourceDot');
@@ -1470,14 +1547,17 @@ if __name__ == "__main__":
       const minTurnoverDollars = f.minTurnoverM * 1_000_000;
 
       state.filteredHistory = rawHistory.map(day => {
-        const matching = day.stocks.filter(st =>
-          st.volMult >= f.volMult &&
-          st.emaVol30 >= f.minEmaVol &&
-          st.pctChange >= f.minGain &&
-          st.price > f.minPrice &&
-          st.mktCapM > f.minMktCap &&
-          st.turnover >= minTurnoverDollars
-        );
+        const matching = day.stocks.filter(st => {
+          const effectiveTurnover = Math.max(st.turnover || 0, st.turnover20d || 0);
+          return (
+            st.volMult >= f.volMult &&
+            st.emaVol30 >= f.minEmaVol &&
+            st.pctChange >= f.minGain &&
+            st.price > f.minPrice &&
+            st.mktCapM > f.minMktCap &&
+            effectiveTurnover >= minTurnoverDollars
+          );
+        });
         return { date: day.date, stocks: matching };
       });
 
@@ -2252,47 +2332,75 @@ if __name__ == "__main__":
         if (toastInClone) toastInClone.classList.add('hidden');
         const htmlSource = '<!DOCTYPE html>\n' + clone.outerHTML;
         downloadTextFile('index.html', htmlSource, 'text/html');
-        showToast('Downloaded index.html!');
+        showToast('Downloaded index.html — drag it into GitHub!');
       });
 
       // Download fetch_us_eod.py for GitHub upload
       document.getElementById('downloadCloudPyBtn').addEventListener('click', () => {
         const pySource = document.getElementById('pythonEodScriptSource').textContent.trim() + '\n';
         downloadTextFile('fetch_us_eod.py', pySource, 'text/x-python');
-        showToast('Downloaded fetch_us_eod.py!');
+        showToast('Downloaded fetch_us_eod.py — drag it into GitHub!');
       });
 
-      // Copy workflow filename & schedule code
+      // Copy GitHub workflow file path & YAML
       document.getElementById('copyWorkflowPathBtn').addEventListener('click', () => {
-        copyTextToClipboard('.github/workflows/daily_eod.yml', 'Copied file name: .github/workflows/daily_eod.yml');
+        copyTextToClipboard('.github/workflows/daily_eod.yml', 'Copied file path: .github/workflows/daily_eod.yml');
       });
-
       document.getElementById('copyWorkflowYamlBtn').addEventListener('click', () => {
         const yamlSource = document.getElementById('githubWorkflowYamlSource').textContent.trim() + '\n';
-        copyTextToClipboard(yamlSource, 'Copied nightly schedule code! Paste it into GitHub.');
+        copyTextToClipboard(yamlSource, 'Copied nightly schedule YAML to clipboard!');
       });
 
-      // Toggle Scan Filter Card
-      const filterSection = document.getElementById('scanFilterSection');
+      // Toggle Scan Filter Panel Visibility
+      const scanSection = document.getElementById('scanFilterSection');
       const toggleFiltersLabel = document.getElementById('toggleFiltersLabel');
       document.getElementById('toggleFiltersBtn').addEventListener('click', () => {
-        const isHidden = filterSection.classList.toggle('hidden');
+        const isHidden = scanSection.classList.toggle('hidden');
         toggleFiltersLabel.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
       });
 
-      // Run Scan & Reset Defaults
-      document.getElementById('runScanBtn').addEventListener('click', () => {
-        state.filters.volMult = Math.max(0.1, parseFloat(document.getElementById('inputVolMult').value) || 1.5);
-        state.filters.minEmaVol = Math.max(0, parseInt(document.getElementById('inputMinEmaVol').value, 10) || 15000);
-        state.filters.minGain = Math.max(0, parseFloat(document.getElementById('inputMinGain').value) || 3.0);
-        state.filters.minPrice = Math.max(0.1, parseFloat(document.getElementById('inputMinPrice').value) || 2.0);
-        state.filters.minMktCap = Math.max(0, parseFloat(document.getElementById('inputMinMktCap').value) || 300);
-        state.filters.minTurnoverM = Math.max(0, parseFloat(document.getElementById('inputMinTurnover').value) || 5.0);
+      // Run Scan, Live Instant Filter Inputs & Reset Defaults
+      function syncFilterInputsAndRefresh(showFeedbackToast = false) {
+        const rawVolMult = parseFloat(document.getElementById('inputVolMult').value);
+        const rawMinEmaVol = parseInt(document.getElementById('inputMinEmaVol').value, 10);
+        const rawMinGain = parseFloat(document.getElementById('inputMinGain').value);
+        const rawMinPrice = parseFloat(document.getElementById('inputMinPrice').value);
+        const rawMinMktCap = parseFloat(document.getElementById('inputMinMktCap').value);
+        const rawMinTurnover = parseFloat(document.getElementById('inputMinTurnover').value);
+
+        state.filters.volMult = Number.isFinite(rawVolMult) && rawVolMult >= 0 ? rawVolMult : 1.5;
+        state.filters.minEmaVol = Number.isFinite(rawMinEmaVol) && rawMinEmaVol >= 0 ? rawMinEmaVol : 15000;
+        state.filters.minGain = Number.isFinite(rawMinGain) && rawMinGain >= 0 ? rawMinGain : 3.0;
+        state.filters.minPrice = Number.isFinite(rawMinPrice) && rawMinPrice >= 0 ? rawMinPrice : 2.0;
+        state.filters.minMktCap = Number.isFinite(rawMinMktCap) && rawMinMktCap >= 0 ? rawMinMktCap : 300;
+        state.filters.minTurnoverM = Number.isFinite(rawMinTurnover) && rawMinTurnover >= 0 ? rawMinTurnover : 5.0;
 
         applyScanFilters();
         renderTable();
         drawBacktestChart();
-        showToast('Scan updated across US trading days');
+        updateDatasetFloorBanner();
+
+        if (showFeedbackToast) {
+          const count = getFilteredStocksForSelectedDate().length;
+          showToast(`Updated: ${count} matching US stocks on ${formatDisplayDate(state.selectedDate)}`);
+        }
+      }
+
+      ['inputVolMult', 'inputMinEmaVol', 'inputMinGain', 'inputMinPrice', 'inputMinMktCap', 'inputMinTurnover'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => syncFilterInputsAndRefresh(false));
+        el.addEventListener('change', () => syncFilterInputsAndRefresh(true));
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            syncFilterInputsAndRefresh(true);
+          }
+        });
+      });
+
+      document.getElementById('runScanBtn').addEventListener('click', () => {
+        syncFilterInputsAndRefresh(true);
       });
 
       document.getElementById('resetFiltersBtn').addEventListener('click', () => {
@@ -2302,7 +2410,7 @@ if __name__ == "__main__":
         document.getElementById('inputMinPrice').value = '2.0';
         document.getElementById('inputMinMktCap').value = '300';
         document.getElementById('inputMinTurnover').value = '5.0';
-        document.getElementById('runScanBtn').click();
+        syncFilterInputsAndRefresh(true);
       });
 
       // Top Nav Shortcuts
