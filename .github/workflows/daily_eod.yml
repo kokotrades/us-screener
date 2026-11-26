@@ -1,0 +1,35 @@
+name: Daily US Market EOD Update
+
+on:
+  schedule:
+    - cron: '0 22 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-eod-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install required libraries
+        run: pip install yfinance pandas numpy requests
+
+      - name: Fetch US EOD & True Intraday VWAP
+        run: python fetch_us_eod.py --output us_eod_data.json
+
+      - name: Save updated EOD JSON to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add us_eod_data.json
+          git diff --staged --quiet || git commit -m "Auto-update US EOD data"
+          git push
