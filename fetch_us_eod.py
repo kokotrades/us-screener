@@ -202,6 +202,145 @@ def _download_yf_with_retry(
             time.sleep(wait_s)
 
     return pd.DataFrame()
+
+
+def _clean_company_name(raw_name: str) -> str:
+    """Strips boilerplate security suffixes from exchange directory names."""
+    name = str(raw_name or "").strip()
+    for suffix in (
+        " - Common Stock",
+        " Common Stock",
+        " - Ordinary Shares",
+        " Ordinary Shares",
+        " - Class A Common Stock",
+        " Class A Common Stock",
+        " - American Depositary Shares",
+    ):
+        if name.lower().endswith(suffix.lower()):
+            name = name[: -len(suffix)].strip()
+    return name or "Unknown"
+
+
+def _is_valid_common_ticker(sym: str) -> bool:
+    """Filters out warrants, rights, units, preferreds, and test symbols."""
+    if not sym or len(sym) > 5:
+        return False
+    if any(ch in sym for ch in ("$", "^", "/", " ", "~", "#")):
+        return False
+    clean = sym.replace(".", "-")
+    parts = clean.split("-")
+    if len(parts) > 2 or not parts[0].isalpha():
+        return False
+    if len(parts) == 2 and parts[1] not in ("A", "B"):
+        return False
+    # 5-letter NASDAQ tickers ending in W/R/U/P/Q denote warrants, rights, units, preferred, or bankruptcy
+    if len(parts[0]) == 5 and parts[0][-1] in ("W", "R", "U", "P", "Q"):
+        return False
+    return True
+
+
+def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
+    """
+    Fetches the active NYSE & NASDAQ common stock universe using the official
+    SEC EDGAR exchange directory first (cloud-IP friendly), with NASDAQ Trader
+    symbol files as automatic fallback.
+    """
+    print("[1/5] Fetching NYSE & NASDAQ common stock universe...")
+    records: List[dict] = []
+
+    # Primary source: Official SEC EDGAR company_tickers_exchange.json
+    try:
+        sec_headers = {
+            "User-Agent": "KokotradesUSMarketScreener/1.0 (contact@kokotrades.github.io)",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept": "application/json",
+        }
+        resp = requests.get(
+            "https://www.sec.gov/files/company_tickers_exchange.json",
+            headers=sec_headers,
+            timeout=25,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            fields = data.get("fields", [])
+            rows = data.get("data", [])
+            if "ticker" in fields and "name" in fields and "exchange" in fields:
+                idx_ticker = fields.index("ticker")
+                idx_name = fields.index("name")
+                idx_exch = fields.index("exchange")
+
+                for row in rows:
+                    exch_raw = str(row[idx_exch] or "").strip()
+                    exch_upper = exch_raw.upper()
+                    if exch_upper not in ("NASDAQ", "NYSE"):
+                        continue
+
+                    sym = str(row[idx_ticker] or "").strip().upper().replace(".", "-")
+                    if not _is_valid_common_ticker(sym):
+                        continue
+
+                    records.append(
+                        {
+                            "Symbol": sym,
+                            "CleanName": _clean_company_name(row[idx_name]),
+                            "Exchange": "NASDAQ" if exch_upper == "NASDAQ" else "NYSE",
+                        }
+                    )
+    except Exception as exc:
+        print(f"      SEC EDGAR directory notice: {exc} — trying NASDAQ Trader fallback...")
+
+    # Fallback source: NASDAQ Trader symbol directories
+    if not records:
+        browser_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            )
+        }
+        for url, is_nasdaq in (
+            ("https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt", True),
+            ("https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt", False),
+        ):
+            try:
+                r = requests.get(url, headers=browser_headers, timeout=25)
+                if r.status_code != 200:
+                    continue
+                df_txt = pd.read_csv(io.StringIO(r.text), sep="|")
+                sym_col = "Symbol" if is_nasdaq else "ACT Symbol"
+                if sym_col not in df_txt.columns:
+                    continue
+
+                df_txt = df_txt[df_txt["Test Issue"].astype(str).str.upper() == "N"]
+                if "ETF" in df_txt.columns:
+                    df_txt = df_txt[df_txt["ETF"].astype(str).str.upper() == "N"]
+                if not is_nasdaq and "Exchange" in df_txt.columns:
+                    df_txt = df_txt[df_txt["Exchange"].astype(str).str.upper() == "N"]
+
+                for _, row in df_txt.iterrows():
+                    sym = str(row[sym_col] or "").strip().upper().replace(".", "-")
+                    if not _is_valid_common_ticker(sym):
+                        continue
+                    records.append(
+                        {
+                            "Symbol": sym,
+                            "CleanName": _clean_company_name(row.get("Security Name", sym)),
+                            "Exchange": "NASDAQ" if is_nasdaq else "NYSE",
+                        }
+                    )
+            except Exception as exc:
+                print(f"      Warning fetching {url}: {exc}")
+
+    if not records:
+        raise RuntimeError("Unable to retrieve NYSE/NASDAQ symbol list from SEC EDGAR or NASDAQ Trader.")
+
+    universe = pd.DataFrame(records).drop_duplicates(subset=["Symbol"]).reset_index(drop=True)
+    if max_symbols and max_symbols > 0:
+        universe = universe.head(max_symbols).copy()
+
+    print(f"      Loaded {len(universe):,} NYSE & NASDAQ common stocks.")
+    return universe
+
+
 def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> Dict[str, pd.DataFrame]:
     """
     Downloads ~11 months of daily OHLCV bars in batches so 20-day and 30-day EMAs
