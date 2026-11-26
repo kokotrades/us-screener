@@ -17,14 +17,20 @@ import argparse
 import io
 import json
 import math
+import random
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
+
+try:
+    from curl_cffi import requests as cffi_requests
+except ImportError:
+    cffi_requests = None
 
 
 # Map Yahoo Finance GICS sector names to the exact 11 keys in the web dashboard
@@ -43,90 +49,160 @@ SECTOR_MAP = {
 }
 
 
-def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
+class YahooCrumbSession:
     """
-    Downloads official NYSE & NASDAQ common stock lists with automatic
-    cloud fallback (NASDAQ Trader -> US SEC EDGAR Exchange Directory) so
-    GitHub Actions runners are never blocked by firewall rules.
+    Maintains an authenticated Yahoo Finance cookie + crumb session with
+    automatic refresh and exponential backoff on HTTP 401 (Invalid Crumb)
+    and HTTP 429 (Too Many Requests).
     """
-    print("[1/5] Fetching official NYSE & NASDAQ symbol lists...")
-    universe = pd.DataFrame()
 
-    # Source 1: NASDAQ Trader Symbol Directory
+    BROWSER_HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/126.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://finance.yahoo.com/",
+    }
+
+    def __init__(self) -> None:
+        self.session = self._new_session()
+        self.crumb: Optional[str] = None
+
+    def _new_session(self):
+        if cffi_requests is not None:
+            return cffi_requests.Session(impersonate="chrome")
+        sess = requests.Session()
+        sess.headers.update(self.BROWSER_HEADERS)
+        return sess
+
+    def refresh(self, max_attempts: int = 3) -> bool:
+        """Acquires fresh Yahoo consent cookies and a valid API crumb."""
+        for attempt in range(max_attempts):
+            try:
+                self.session = self._new_session()
+                self.crumb = None
+
+                # Step 1: Seed session cookies from Yahoo consent/finance endpoints
+                for seed_url in ("https://fc.yahoo.com", "https://finance.yahoo.com/quote/AAPL"):
+                    try:
+                        self.session.get(seed_url, timeout=15, allow_redirects=True)
+                    except Exception:
+                        pass
+
+                # Step 2: Request fresh crumb tied to the seeded cookies
+                for crumb_url in (
+                    "https://query1.finance.yahoo.com/v1/test/getcrumb",
+                    "https://query2.finance.yahoo.com/v1/test/getcrumb",
+                ):
+                    resp = self.session.get(crumb_url, timeout=15)
+                    text = (resp.text or "").strip()
+                    if (
+                        resp.status_code == 200
+                        and text
+                        and "<html" not in text.lower()
+                        and "too many requests" not in text.lower()
+                    ):
+                        self.crumb = text
+                        return True
+            except Exception:
+                pass
+
+            backoff = 1.5 * (2 ** attempt) + random.uniform(0.2, 0.8)
+            time.sleep(backoff)
+
+        return False
+
+    def get_json(self, url: str, params: Optional[dict] = None, max_retries: int = 4) -> Optional[dict]:
+        """Executes a GET request with crumb injection, 401 crumb refresh, and 429 retry."""
+        if not self.crumb:
+            self.refresh()
+
+        for attempt in range(max_retries):
+            req_params = dict(params or {})
+            if self.crumb:
+                req_params["crumb"] = self.crumb
+
+            try:
+                resp = self.session.get(url, params=req_params, timeout=20)
+                if resp.status_code == 200:
+                    return resp.json()
+
+                if resp.status_code in (401, 403):
+                    print(f"      Yahoo HTTP {resp.status_code} (Invalid Crumb) — refreshing session (retry {attempt + 1}/{max_retries})...")
+                    time.sleep(1.5 * (2 ** attempt))
+                    self.refresh()
+                    continue
+
+                if resp.status_code == 429:
+                    wait_s = 3.0 * (2 ** attempt) + random.uniform(0.5, 1.5)
+                    print(f"      Yahoo HTTP 429 rate limit — waiting {wait_s:.1f}s (retry {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_s)
+                    self.refresh()
+                    continue
+            except Exception:
+                time.sleep(1.5 * (2 ** attempt))
+
+        return None
+
+
+def _safe_int(val: Any, default: int = 0) -> int:
+    """Safely converts numeric/pandas values to int, returning default on NaN/Inf/None."""
+    if val is None:
+        return default
     try:
-        browser_headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "text/plain,text/html,application/xhtml+xml,*/*",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-        nasdaq_url = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
-        r_nas = requests.get(nasdaq_url, headers=browser_headers, timeout=20)
-        r_nas.raise_for_status()
-        df_nas = pd.read_csv(io.StringIO(r_nas.text), sep="|")
-        df_nas = df_nas[df_nas["Symbol"].notna() & ~df_nas["Symbol"].str.contains("File Creation Time", na=False)]
-        df_nas = df_nas[(df_nas["Test Issue"] == "N") & (df_nas["ETF"] == "N")].copy()
-        df_nas["Exchange"] = "NASDAQ"
-        df_nas = df_nas[["Symbol", "Security Name", "Exchange"]]
-
-        other_url = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
-        r_oth = requests.get(other_url, headers=browser_headers, timeout=20)
-        r_oth.raise_for_status()
-        df_oth = pd.read_csv(io.StringIO(r_oth.text), sep="|")
-        df_oth = df_oth[df_oth["ACT Symbol"].notna() & ~df_oth["ACT Symbol"].str.contains("File Creation Time", na=False)]
-        df_oth = df_oth[(df_oth["Test Issue"] == "N") & (df_oth["ETF"] == "N")].copy()
-        df_oth = df_oth[df_oth["Exchange"].isin(["N", "A", "P"])].copy()
-        df_oth["Exchange"] = df_oth["Exchange"].map({"N": "NYSE", "A": "NYSE", "P": "NYSE"})
-        df_oth = df_oth.rename(columns={"ACT Symbol": "Symbol"})[["Symbol", "Security Name", "Exchange"]]
-
-        universe = pd.concat([df_nas, df_oth], ignore_index=True).drop_duplicates(subset=["Symbol"])
-        print("      Loaded symbol list from NASDAQ Trader.")
-    except Exception as exc:
-        print(f"      NASDAQ Trader unavailable on cloud runner ({exc}). Switching to US SEC EDGAR...")
-
-    # Source 2: Official US SEC EDGAR Company & Exchange Directory (Cloud-Safe Fallback)
-    if universe.empty:
-        sec_headers = {
-            "User-Agent": "USMarketScreener/1.0 (contact@usmarketscreener.org)",
-            "Accept": "application/json",
-        }
-        sec_url = "https://www.sec.gov/files/company_tickers_exchange.json"
-        r_sec = requests.get(sec_url, headers=sec_headers, timeout=25)
-        r_sec.raise_for_status()
-        payload = r_sec.json()
-        df_sec = pd.DataFrame(payload["data"], columns=payload["fields"])
-        df_sec = df_sec[df_sec["exchange"].isin(["Nasdaq", "NYSE"])].copy()
-        df_sec["Exchange"] = df_sec["exchange"].map({"Nasdaq": "NASDAQ", "NYSE": "NYSE"})
-        df_sec = df_sec.rename(columns={"ticker": "Symbol", "name": "Security Name"})[
-            ["Symbol", "Security Name", "Exchange"]
-        ]
-        universe = df_sec.drop_duplicates(subset=["Symbol"])
-        print("      Loaded symbol list from US SEC EDGAR.")
-
-    # Filter out warrants, rights, units, preferreds, and tickers with special characters
-    def is_clean_common_ticker(sym: str) -> bool:
-        if not isinstance(sym, str):
-            return False
-        sym = sym.strip()
-        if any(ch in sym for ch in [".", "$", "^", "/", "-", " "]):
-            return False
-        # Exclude 5-letter NASDAQ suffixes for warrants/rights/units/bankrupt (W, R, U, Q)
-        if len(sym) == 5 and sym[-1] in {"W", "R", "U", "Q"}:
-            return False
-        return 1 <= len(sym) <= 5
-
-    universe = universe[universe["Symbol"].apply(is_clean_common_ticker)].reset_index(drop=True)
-    universe["CleanName"] = universe["Security Name"].apply(
-        lambda x: str(x).split(" - ")[0].strip() if pd.notna(x) else ""
-    )
-
-    if max_symbols > 0:
-        universe = universe.head(max_symbols)
-
-    print(f"      Found {len(universe):,} clean NYSE & NASDAQ common stocks.")
-    return universe
+        fval = float(val)
+        if not math.isfinite(fval):
+            return default
+        return int(round(fval))
+    except (TypeError, ValueError):
+        return default
 
 
-def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> Dict[str, pd.DataFrame]:
+def _safe_float(val: Any, digits: int = 2, default: float = 0.0) -> float:
+    """Safely converts numeric/pandas values to rounded float, returning default on NaN/Inf/None."""
+    if val is None:
+        return default
+    try:
+        fval = float(val)
+        if not math.isfinite(fval):
+            return default
+        return round(fval, digits)
+    except (TypeError, ValueError):
+        return default
+
+
+def _download_yf_with_retry(
+    tickers: List[str],
+    period: str,
+    interval: str,
+    max_retries: int = 3,
+) -> pd.DataFrame:
+    """Wraps yf.download with exponential backoff retries against transient 401/429 responses."""
+    for attempt in range(max_retries):
+        try:
+            raw = yf.download(
+                tickers=tickers,
+                period=period,
+                interval=interval,
+                group_by="ticker",
+                auto_adjust=False,
+                threads=True,
+                progress=False,
+            )
+            if raw is not None and not raw.empty:
+                return raw
+        except Exception as exc:
+            print(f"      Warning: yf.download attempt {attempt + 1}/{max_retries} failed: {exc}")
+
+        if attempt < max_retries - 1:
+            wait_s = 2.5 * (2 ** attempt) + random.uniform(0.3, 1.0)
+            time.sleep(wait_s)
+
+    return pd.DataFrame()
+def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> Dict[str, pd.DataFrame]:
     """
     Downloads ~11 months of daily OHLCV bars in batches so 20-day and 30-day EMAs
     are warmed up across a full 9-month (189 trading days) backtest window.
@@ -138,19 +214,7 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
     for b_idx in range(total_batches):
         chunk = symbols[b_idx * batch_size : (b_idx + 1) * batch_size]
         print(f"      Batch {b_idx + 1}/{total_batches} ({len(chunk)} tickers)...")
-        try:
-            raw = yf.download(
-                tickers=chunk,
-                period="11mo",
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=False,
-                threads=True,
-                progress=False,
-            )
-        except Exception as exc:
-            print(f"      Warning: Batch {b_idx + 1} error: {exc}")
-            continue
+        raw = _download_yf_with_retry(chunk, period="11mo", interval="1d", max_retries=3)
 
         if raw.empty:
             continue
@@ -174,7 +238,7 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
             except Exception:
                 continue
 
-        time.sleep(0.4)
+        time.sleep(0.75)
 
     print(f"      Loaded valid daily history for {len(daily_data):,} stocks.")
     return daily_data
@@ -201,15 +265,15 @@ def prefilter_candidates(
         df = df.sort_index().copy()
         df["ema_vol_20"] = df["Volume"].ewm(span=20, adjust=False).mean()
         df["ema_vol_30"] = df["Volume"].ewm(span=30, adjust=False).mean()
-        df["sma_vol_20"] = df["Volume"].rolling(20).mean()
-        df["pct_chg"] = (df["Close"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100.0
-        df["vol_mult"] = df["Volume"] / df["ema_vol_20"]
+        df["sma_vol_20"] = df["Volume"].rolling(20, min_periods=1).mean()
+        df["pct_chg"] = ((df["Close"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100.0).fillna(0.0)
+        df["vol_mult"] = (df["Volume"] / df["ema_vol_20"].replace(0, np.nan)).fillna(0.0)
 
         # Typical price proxy before 5-minute intraday VWAP refinement
         df["vwap"] = (df["High"] + df["Low"] + df["Close"]) / 3.0
         df["ema_vwap_20"] = df["vwap"].ewm(span=20, adjust=False).mean()
-        df["turnover_day"] = df["vwap"] * df["Volume"]
-        df["turnover_20d"] = df["ema_vwap_20"] * df["sma_vol_20"]
+        df["turnover_day"] = (df["vwap"] * df["Volume"]).fillna(0.0)
+        df["turnover_20d"] = (df["ema_vwap_20"] * df["sma_vol_20"]).fillna(df["turnover_day"])
 
         window = df.iloc[-backtest_days:].copy()
         cond = (
@@ -233,36 +297,88 @@ def fetch_fundamentals_and_true_intraday_vwap(
     min_mkt_cap_m: float = 150.0,
 ) -> Tuple[Dict[str, dict], Dict[str, Dict[str, float]]]:
     """
-    1. Fetches Market Cap (> $150M capture floor) and GICS Sector for candidates.
+    1. Fetches Market Cap (> $150M capture floor) and GICS Sector via authenticated
+       Yahoo batch quote requests (with automatic crumb refresh & retry), avoiding
+       per-ticker quoteSummary HTTP 401 crumb failures.
     2. Downloads 5-minute intraday bars (last 60 trading days) for qualifying
        stocks to compute TRUE intraday VWAP = sum(TypicalPrice * Vol) / sum(Vol).
     """
     print(f"[4/5] Checking Market Cap > ${min_mkt_cap_m:.0f}M & Sector metadata...")
     qualified_meta: Dict[str, dict] = {}
     syms = list(candidates.keys())
+    if not syms:
+        return qualified_meta, {}
 
-    for idx, sym in enumerate(syms, start=1):
-        if idx % 100 == 0:
-            print(f"      Checked metadata for {idx}/{len(syms)} candidates...")
-        try:
-            tk = yf.Ticker(sym)
-            finfo = tk.fast_info
-            mkt_cap = getattr(finfo, "market_cap", None)
-            if mkt_cap is None and isinstance(finfo, dict):
-                mkt_cap = finfo.get("market_cap")
-            if not mkt_cap or (mkt_cap / 1_000_000.0) <= min_mkt_cap_m:
+    yahoo_auth = YahooCrumbSession()
+    crumb_ok = yahoo_auth.refresh()
+    if crumb_ok:
+        print("      Authenticated Yahoo Finance session & crumb acquired.")
+    else:
+        print("      Warning: Could not pre-fetch Yahoo crumb; will retry during batch requests.")
+
+    # Batch fetch marketCap + sector in chunks of 100 symbols (100x fewer API calls)
+    meta_batch_size = 100
+    unresolved_syms: List[str] = []
+
+    for b_idx in range(math.ceil(len(syms) / meta_batch_size)):
+        chunk = syms[b_idx * meta_batch_size : (b_idx + 1) * meta_batch_size]
+        payload = yahoo_auth.get_json(
+            "https://query2.finance.yahoo.com/v7/finance/quote",
+            params={
+                "symbols": ",".join(chunk),
+                "fields": "symbol,marketCap,sector,industry",
+            },
+            max_retries=4,
+        )
+
+        results = (payload or {}).get("quoteResponse", {}).get("result", [])
+        if not results:
+            unresolved_syms.extend(chunk)
+            time.sleep(0.6)
+            continue
+
+        seen_in_batch = set()
+        for item in results:
+            sym = item.get("symbol")
+            if not sym:
+                continue
+            seen_in_batch.add(sym)
+            mkt_cap = item.get("marketCap")
+            if not mkt_cap or (float(mkt_cap) / 1_000_000.0) <= min_mkt_cap_m:
                 continue
 
-            info = tk.info or {}
-            raw_sector = info.get("sector", "Technology")
+            raw_sector = item.get("sector") or "Technology"
             mapped_sector = SECTOR_MAP.get(raw_sector, "technology")
-
             qualified_meta[sym] = {
-                "mktCapM": round(mkt_cap / 1_000_000.0, 1),
+                "mktCapM": _safe_float(float(mkt_cap) / 1_000_000.0, digits=1, default=0.0),
                 "sector": mapped_sector,
             }
-        except Exception:
-            continue
+
+        for sym in chunk:
+            if sym not in seen_in_batch:
+                unresolved_syms.append(sym)
+
+        time.sleep(0.5)
+
+    # Fallback via fast_info for any symbols not returned by batch quote
+    if unresolved_syms:
+        print(f"      Checking fast_info fallback for {len(unresolved_syms)} remaining symbols...")
+        for sym in unresolved_syms:
+            try:
+                tk = yf.Ticker(sym)
+                finfo = tk.fast_info
+                mkt_cap = getattr(finfo, "market_cap", None)
+                if mkt_cap is None and isinstance(finfo, dict):
+                    mkt_cap = finfo.get("market_cap")
+                if not mkt_cap or (float(mkt_cap) / 1_000_000.0) <= min_mkt_cap_m:
+                    continue
+
+                qualified_meta[sym] = {
+                    "mktCapM": _safe_float(float(mkt_cap) / 1_000_000.0, digits=1, default=0.0),
+                    "sector": "technology",
+                }
+            except Exception:
+                continue
 
     print(f"      {len(qualified_meta):,} stocks passed Market Cap > ${min_mkt_cap_m:.0f}M.")
 
@@ -273,21 +389,10 @@ def fetch_fundamentals_and_true_intraday_vwap(
         return qualified_meta, true_vwap_map
 
     print("[5/5] Computing TRUE Intraday VWAP from 5-minute bars (last 60 trading days)...")
-    batch_size = 100
+    batch_size = 75
     for b_idx in range(math.ceil(len(qual_syms) / batch_size)):
         chunk = qual_syms[b_idx * batch_size : (b_idx + 1) * batch_size]
-        try:
-            intra = yf.download(
-                tickers=chunk,
-                period="60d",
-                interval="5m",
-                group_by="ticker",
-                auto_adjust=False,
-                threads=True,
-                progress=False,
-            )
-        except Exception:
-            continue
+        intra = _download_yf_with_retry(chunk, period="60d", interval="5m", max_retries=3)
 
         if intra.empty:
             continue
@@ -324,11 +429,12 @@ def fetch_fundamentals_and_true_intraday_vwap(
                 grouped["true_vwap"] = grouped["pv_sum"] / grouped["vol_sum"]
 
                 for d_str, v_val in grouped["true_vwap"].items():
-                    true_vwap_map[sym][str(d_str)] = round(float(v_val), 4)
+                    if pd.notna(v_val) and math.isfinite(float(v_val)):
+                        true_vwap_map[sym][str(d_str)] = round(float(v_val), 4)
             except Exception:
                 continue
 
-        time.sleep(0.4)
+        time.sleep(0.75)
 
     return qualified_meta, true_vwap_map
 
@@ -342,7 +448,8 @@ def build_json_payload(
     capture_floor: Optional[dict] = None,
 ) -> dict:
     """
-    Assembles the final JSON structure consumed by us_backtest_screener.html.
+    Assembles the final JSON structure consumed by us_backtest_screener.html,
+    safely sanitizing any NaN/Inf turnover or indicator values before serialization.
     """
     name_lookup = dict(zip(universe["Symbol"], universe["CleanName"]))
     exch_lookup = dict(zip(universe["Symbol"], universe["Exchange"]))
@@ -363,36 +470,58 @@ def build_json_payload(
 
         # Replace proxy VWAP with true intraday 5m VWAP wherever available
         df["final_vwap"] = [
-            true_vwap_map.get(sym, {}).get(d_str, float(proxy_v))
+            true_vwap_map.get(sym, {}).get(d_str, _safe_float(proxy_v, digits=4, default=0.0))
             for d_str, proxy_v in zip(df["date_str"], df["vwap"])
         ]
-        df["final_ema_vwap_20"] = df["final_vwap"].ewm(span=20, adjust=False).mean()
-        df["final_turnover_day"] = df["final_vwap"] * df["Volume"]
-        df["final_turnover_20d"] = df["final_ema_vwap_20"] * df["sma_vol_20"]
+        df["final_vwap"] = pd.to_numeric(df["final_vwap"], errors="coerce").replace([np.inf, -np.inf], np.nan)
+        df["final_vwap"] = df["final_vwap"].fillna(df["Close"]).fillna(0.0)
+
+        df["final_ema_vwap_20"] = df["final_vwap"].ewm(span=20, adjust=False).mean().fillna(df["final_vwap"])
+        sma_vol_safe = df["sma_vol_20"].fillna(df["Volume"]).fillna(0.0)
+
+        df["final_turnover_day"] = (
+            (df["final_vwap"] * df["Volume"])
+            .replace([np.inf, -np.inf], np.nan)
+            .fillna(0.0)
+        )
+        df["final_turnover_20d"] = (
+            (df["final_ema_vwap_20"] * sma_vol_safe)
+            .replace([np.inf, -np.inf], np.nan)
+            .fillna(df["final_turnover_day"])
+            .fillna(0.0)
+        )
 
         # Re-verify exact Chartink VWAP turnover rule using true intraday VWAP
-        final_pass = df["pre_pass"] & (
-            (df["final_turnover_day"] >= turnover_min) | (df["final_turnover_20d"] >= turnover_min)
+        final_pass = (
+            df["pre_pass"].fillna(False)
+            & df["Close"].notna()
+            & (df["Close"] > 0)
+            & df["Volume"].notna()
+            & (df["Volume"] > 0)
+            & ((df["final_turnover_day"] >= turnover_min) | (df["final_turnover_20d"] >= turnover_min))
         )
 
         passed_rows = df[final_pass]
         for _, row in passed_rows.iterrows():
             d_str = row["date_str"]
+            day_turnover = _safe_int(row["final_turnover_day"], default=0)
+            avg_turnover_20d = _safe_int(row["final_turnover_20d"], default=day_turnover)
+
             history_by_date[d_str].append(
                 {
                     "symbol": sym,
                     "name": name_lookup.get(sym, sym),
                     "exchange": exch_lookup.get(sym, "NASDAQ"),
                     "sector": meta["sector"],
-                    "price": round(float(row["Close"]), 2),
-                    "intradayVwap": round(float(row["final_vwap"]), 2),
-                    "pctChange": round(float(row["pct_chg"]), 2),
-                    "volume": int(row["Volume"]),
-                    "emaVol30": int(row["ema_vol_30"]),
-                    "volMult": round(float(row["vol_mult"]), 2),
-                    "mktCapM": meta["mktCapM"],
-                    "turnover": int(row["final_turnover_day"]),
-                    "turnover20d": int(row["final_turnover_20d"]),
+                    "price": _safe_float(row["Close"], digits=2, default=0.0),
+                    "intradayVwap": _safe_float(row["final_vwap"], digits=2, default=0.0),
+                    "pctChange": _safe_float(row["pct_chg"], digits=2, default=0.0),
+                    "volume": _safe_int(row["Volume"], default=0),
+                    "emaVol30": _safe_int(row["ema_vol_30"], default=0),
+                    "volMult": _safe_float(row["vol_mult"], digits=2, default=0.0),
+                    "mktCapM": _safe_float(meta["mktCapM"], digits=1, default=0.0),
+                    "turnover": day_turnover,
+                    "turnover20d": avg_turnover_20d,
                 }
             )
 
@@ -411,16 +540,16 @@ def build_json_payload(
             c_list = []
             for dt, r in sub.iterrows():
                 d_str = pd.Timestamp(dt).strftime("%Y-%m-%d")
-                v_val = true_vwap_map.get(sym, {}).get(d_str, float(r["vwap"]))
+                v_val = true_vwap_map.get(sym, {}).get(d_str, _safe_float(r["vwap"], digits=2, default=0.0))
                 c_list.append(
                     {
                         "date": d_str,
-                        "o": round(float(r["Open"]), 2),
-                        "h": round(float(r["High"]), 2),
-                        "l": round(float(r["Low"]), 2),
-                        "c": round(float(r["Close"]), 2),
-                        "v": int(r["Volume"]),
-                        "vwap": round(float(v_val), 2),
+                        "o": _safe_float(r["Open"], digits=2, default=0.0),
+                        "h": _safe_float(r["High"], digits=2, default=0.0),
+                        "l": _safe_float(r["Low"], digits=2, default=0.0),
+                        "c": _safe_float(r["Close"], digits=2, default=0.0),
+                        "v": _safe_int(r["Volume"], default=0),
+                        "vwap": _safe_float(v_val, digits=2, default=0.0),
                     }
                 )
             candles_dict[sym] = c_list
@@ -468,7 +597,7 @@ def main() -> None:
     }
 
     universe = fetch_us_common_stocks(max_symbols=args.max_symbols)
-    daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=250)
+    daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=150)
     candidates = prefilter_candidates(
         daily_data,
         backtest_days=args.days,
