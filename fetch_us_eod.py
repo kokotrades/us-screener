@@ -19,7 +19,7 @@ import json
 import math
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -158,7 +158,15 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
         is_multi = isinstance(raw.columns, pd.MultiIndex)
         for sym in chunk:
             try:
-                df = raw[sym].copy() if is_multi else raw.copy()
+                if is_multi:
+                    if sym in raw.columns.get_level_values(0):
+                        df = raw[sym].copy()
+                    elif sym in raw.columns.get_level_values(1):
+                        df = raw.xs(sym, axis=1, level=1).copy()
+                    else:
+                        continue
+                else:
+                    df = raw.copy()
                 df = df.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
                 df = df[df["Volume"] > 0]
                 if len(df) >= 35:
@@ -175,16 +183,16 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
 def prefilter_candidates(
     daily_data: Dict[str, pd.DataFrame],
     backtest_days: int = 189,
-    vol_mult_min: float = 1.2,
+    vol_mult_min: float = 1.1,
     ema_vol30_min: float = 10000.0,
-    pct_gain_min: float = 2.0,
+    pct_gain_min: float = 1.0,
     close_min: float = 1.0,
     turnover_min: float = 1_000_000.0,
 ) -> Dict[str, pd.DataFrame]:
     """
     Computes daily technical indicators using a wide capture floor ($1M turnover,
-    2% gain, 1.2x volume, $1 close) so you can interactively adjust filters
-    down to $1M turnover directly in the web dashboard without re-fetching.
+    1% gain, 1.1x volume, 10k 30-day EMA vol, $1 close) so you can interactively
+    adjust or pause filters directly in the web dashboard without re-fetching.
     """
     print("[3/5] Evaluating daily volume, % gain, and liquidity rules...")
     candidates: Dict[str, pd.DataFrame] = {}
@@ -223,7 +231,7 @@ def prefilter_candidates(
 def fetch_fundamentals_and_true_intraday_vwap(
     candidates: Dict[str, pd.DataFrame],
     min_mkt_cap_m: float = 150.0,
-) -> tuple[Dict[str, dict], Dict[str, Dict[str, float]]]:
+) -> Tuple[Dict[str, dict], Dict[str, Dict[str, float]]]:
     """
     1. Fetches Market Cap (> $150M capture floor) and GICS Sector for candidates.
     2. Downloads 5-minute intraday bars (last 60 trading days) for qualifying
@@ -287,7 +295,15 @@ def fetch_fundamentals_and_true_intraday_vwap(
         is_multi = isinstance(intra.columns, pd.MultiIndex)
         for sym in chunk:
             try:
-                idf = intra[sym].copy() if is_multi else intra.copy()
+                if is_multi:
+                    if sym in intra.columns.get_level_values(0):
+                        idf = intra[sym].copy()
+                    elif sym in intra.columns.get_level_values(1):
+                        idf = intra.xs(sym, axis=1, level=1).copy()
+                    else:
+                        continue
+                else:
+                    idf = intra.copy()
                 idf = idf.dropna(subset=["High", "Low", "Close", "Volume"])
                 idf = idf[idf["Volume"] > 0]
                 if idf.empty:
@@ -295,7 +311,10 @@ def fetch_fundamentals_and_true_intraday_vwap(
 
                 idf["tp"] = (idf["High"] + idf["Low"] + idf["Close"]) / 3.0
                 idf["pv"] = idf["tp"] * idf["Volume"]
-                idf["trade_date"] = pd.to_datetime(idf.index).tz_localize(None).strftime("%Y-%m-%d")
+                dt_idx = pd.to_datetime(idf.index)
+                if getattr(dt_idx, "tz", None) is not None:
+                    dt_idx = dt_idx.tz_convert("America/New_York").tz_localize(None)
+                idf["trade_date"] = dt_idx.strftime("%Y-%m-%d")
 
                 grouped = idf.groupby("trade_date", as_index=True).agg(
                     pv_sum=("pv", "sum"),
@@ -320,6 +339,7 @@ def build_json_payload(
     qualified_meta: Dict[str, dict],
     true_vwap_map: Dict[str, Dict[str, float]],
     turnover_min: float = 1_000_000.0,
+    capture_floor: Optional[dict] = None,
 ) -> dict:
     """
     Assembles the final JSON structure consumed by us_backtest_screener.html.
@@ -406,17 +426,19 @@ def build_json_payload(
             candles_dict[sym] = c_list
 
     latest_date_str = history_list[-1]["date"] if history_list else datetime.now().strftime("%Y-%m-%d")
+    floor_meta = capture_floor or {
+        "minTurnoverM": round(turnover_min / 1_000_000.0, 2),
+        "minGain": 1.0,
+        "volMult": 1.1,
+        "minEmaVol": 10000.0,
+        "minPrice": 1.0,
+        "minMktCapM": 150.0,
+    }
     return {
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latestTradingDate": latest_date_str,
         "source": "Yahoo Finance EOD + 5m Intraday VWAP",
-        "captureFloor": {
-            "minTurnoverM": 1.0,
-            "minGain": 2.0,
-            "volMult": 1.2,
-            "minPrice": 1.0,
-            "minMktCapM": 150.0,
-        },
+        "captureFloor": floor_meta,
         "history": history_list,
         "candles": candles_dict,
     }
@@ -427,13 +449,47 @@ def main() -> None:
     parser.add_argument("--output", default="us_eod_data.json", help="Output JSON path (default: us_eod_data.json)")
     parser.add_argument("--days", type=int, default=189, help="Backtest history trading days (default: 189 = 9 months)")
     parser.add_argument("--max-symbols", type=int, default=0, help="Optional symbol limit for quick testing (0 = all)")
+    parser.add_argument("--min-turnover", type=float, default=1.0, help="Min VWAP turnover in $M (default: 1.0)")
+    parser.add_argument("--min-gain", type=float, default=1.0, help="Min daily %% gain (default: 1.0)")
+    parser.add_argument("--min-vol-mult", type=float, default=1.1, help="Min volume multiplier vs 20d EMA (default: 1.1)")
+    parser.add_argument("--min-ema-vol", type=float, default=10000.0, help="Min 30-day EMA volume (default: 10000)")
+    parser.add_argument("--min-price", type=float, default=1.0, help="Min closing price in USD (default: 1.0)")
+    parser.add_argument("--min-mkt-cap", type=float, default=150.0, help="Min market cap in $M (default: 150.0)")
     args = parser.parse_args()
+
+    turnover_dollars = args.min_turnover * 1_000_000.0
+    capture_floor = {
+        "minTurnoverM": args.min_turnover,
+        "minGain": args.min_gain,
+        "volMult": args.min_vol_mult,
+        "minEmaVol": args.min_ema_vol,
+        "minPrice": args.min_price,
+        "minMktCapM": args.min_mkt_cap,
+    }
 
     universe = fetch_us_common_stocks(max_symbols=args.max_symbols)
     daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=250)
-    candidates = prefilter_candidates(daily_data, backtest_days=args.days)
-    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(candidates, min_mkt_cap_m=150.0)
-    payload = build_json_payload(universe, candidates, qualified_meta, true_vwap_map)
+    candidates = prefilter_candidates(
+        daily_data,
+        backtest_days=args.days,
+        vol_mult_min=args.min_vol_mult,
+        ema_vol30_min=args.min_ema_vol,
+        pct_gain_min=args.min_gain,
+        close_min=args.min_price,
+        turnover_min=turnover_dollars,
+    )
+    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(
+        candidates,
+        min_mkt_cap_m=args.min_mkt_cap,
+    )
+    payload = build_json_payload(
+        universe,
+        candidates,
+        qualified_meta,
+        true_vwap_map,
+        turnover_min=turnover_dollars,
+        capture_floor=capture_floor,
+    )
 
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
