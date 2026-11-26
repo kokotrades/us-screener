@@ -95,9 +95,12 @@
       <div class="px-4 sm:px-5 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/70">
         <div class="flex items-center gap-2">
           <h1 class="text-sm font-bold text-slate-800">US High-Volume Intraday VWAP Breakout Scan</h1>
-          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">7 Active Rules</span>
+          <span id="activeRulesBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">6 of 6 Rules Active</span>
         </div>
         <div class="flex items-center gap-2">
+          <button type="button" id="resumeAllFiltersBtn" class="hidden px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 hover:bg-amber-200 text-amber-800 transition cursor-pointer">
+            Resume All
+          </button>
           <button type="button" id="resetFiltersBtn" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200/70 transition cursor-pointer">
             Reset Defaults
           </button>
@@ -122,69 +125,117 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
           <!-- Rule 1: Volume Surge -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily Volume</span>
-              <span class="text-slate-400 font-semibold">&ge;</span>
-              <span class="text-slate-600">20-Day EMA Vol &times;</span>
+          <div id="filterCard-volMult" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="volMult" data-filter-label="Daily Volume" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily Volume</span>
+                <span class="text-slate-400 font-semibold">&ge;</span>
+                <span class="text-slate-600">20-Day EMA Vol &times;</span>
+              </div>
             </div>
             <input id="inputVolMult" type="number" step="0.1" min="0.5" max="10" value="1.5"
-              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shrink-0" />
           </div>
 
           <!-- Rule 2: 30-Day EMA Volume -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">30-Day EMA Vol</span>
-              <span class="text-slate-400 font-semibold">&ge;</span>
-              <span class="text-slate-500">shares</span>
+          <div id="filterCard-minEmaVol" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="minEmaVol" data-filter-label="30-Day EMA Vol" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">30-Day EMA Vol</span>
+                <span class="text-slate-400 font-semibold">&ge;</span>
+                <span class="text-slate-500">shares</span>
+              </div>
             </div>
             <input id="inputMinEmaVol" type="number" step="5000" min="0" value="15000"
-              class="w-24 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              class="w-24 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shrink-0" />
           </div>
 
           <!-- Rule 3: Daily % Gain -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily % Gain</span>
-              <span class="text-slate-400 font-semibold">&ge;</span>
-              <span class="text-slate-500">%</span>
+          <div id="filterCard-minGain" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="minGain" data-filter-label="Daily % Gain" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily % Gain</span>
+                <span class="text-slate-400 font-semibold">&ge;</span>
+                <span class="text-slate-500">%</span>
+              </div>
             </div>
             <input id="inputMinGain" type="number" step="0.5" min="0" max="50" value="3.0"
-              class="w-16 px-2 py-1 text-right font-semibold text-emerald-700 bg-emerald-50/70 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/30" />
+              class="w-16 px-2 py-1 text-right font-semibold text-emerald-700 bg-emerald-50/70 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition shrink-0" />
           </div>
 
           <!-- Rule 4: Minimum Price -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily Close</span>
-              <span class="text-slate-400 font-semibold">&gt;</span>
-              <span class="text-slate-500">USD ($)</span>
+          <div id="filterCard-minPrice" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="minPrice" data-filter-label="Daily Close" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Daily Close</span>
+                <span class="text-slate-400 font-semibold">&gt;</span>
+                <span class="text-slate-500">USD ($)</span>
+              </div>
             </div>
             <input id="inputMinPrice" type="number" step="0.5" min="1" value="2.0"
-              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shrink-0" />
           </div>
 
           <!-- Rule 5: Market Cap -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Market Cap</span>
-              <span class="text-slate-400 font-semibold">&gt;</span>
-              <span class="text-slate-500">$ Million</span>
+          <div id="filterCard-minMktCap" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="minMktCap" data-filter-label="Market Cap" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Market Cap</span>
+                <span class="text-slate-400 font-semibold">&gt;</span>
+                <span class="text-slate-500">$ Million</span>
+              </div>
             </div>
             <input id="inputMinMktCap" type="number" step="50" min="50" value="300"
-              class="w-20 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              class="w-20 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shrink-0" />
           </div>
 
           <!-- Rule 6: Intraday VWAP Dollar Turnover -->
-          <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs">
-            <div class="flex flex-wrap items-center gap-1.5 text-slate-700">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Intraday VWAP Turnover</span>
-              <span class="text-slate-400 font-semibold">&ge;</span>
-              <span class="text-slate-500">$ Million</span>
+          <div id="filterCard-minTurnoverM" class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200/90 shadow-2xs transition">
+            <div class="flex items-center gap-2 min-w-0">
+              <button type="button" data-pause-filter="minTurnoverM" data-filter-label="Intraday VWAP Turnover" title="Pause this filter"
+                class="pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+                </svg>
+              </button>
+              <div class="filter-rule-text flex flex-wrap items-center gap-1.5 text-slate-700">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 font-semibold text-slate-800">Intraday VWAP Turnover</span>
+                <span class="text-slate-400 font-semibold">&ge;</span>
+                <span class="text-slate-500">$ Million</span>
+              </div>
             </div>
             <input id="inputMinTurnover" type="number" step="0.5" min="0.5" value="5.0"
-              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              class="w-16 px-2 py-1 text-right font-semibold text-blue-700 bg-blue-50/70 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shrink-0" />
           </div>
         </div>
 
@@ -783,61 +834,62 @@
         minMktCap: 300,
         minTurnoverM: 5.0
       },
+      pausedFilters: new Set(),
       captureFloor: null,
       isLegacyFloor: false,
       filteredHistory: [],
-      realCandles: {},
       selectedDate: '',
       activeSectors: new Set(GICS_SECTORS.map(s => s.key)),
-      searchQuery: '',
       sortField: 'pctChange',
       sortDir: 'desc',
+      searchQuery: '',
       currentPage: 1,
       perPage: 20,
       timeframeDays: 189,
       viewMode: 'bars',
       zoomEnabled: true,
       zoomPercent: 100,
-      chartBarsMeta: []
+      chartBarsMeta: [],
+      realCandles: {}
     };
 
     // =========================================================================
-    // 5. FILTER EVALUATION, CLOUD DATA LOADER & HELPERS
+    // 5. FORMATTING, CLIPBOARD & FILTER ENGINE
     // =========================================================================
+    let toastTimer = null;
+    function showToast(message) {
+      const el = document.getElementById('toastNotification');
+      if (!el) return;
+      el.textContent = message;
+      el.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('hidden');
+      }, 3200);
+    }
+
     function formatDisplayDate(dateStr) {
       if (!dateStr) return '--';
-      const parts = dateStr.split('-');
+      const parts = dateStr.split('-').map(Number);
       if (parts.length !== 3) return dateStr;
-      const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const dt = new Date(parts[0], parts[1] - 1, parts[2]);
       return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     function formatShortDate(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
+      if (!dateStr) return '--';
+      const parts = dateStr.split('-').map(Number);
       if (parts.length !== 3) return dateStr;
-      const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const dt = new Date(parts[0], parts[1] - 1, parts[2]);
       return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
     function formatCompactDollar(amount) {
-      if (!amount || isNaN(amount)) return '$0';
-      if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-      if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-      if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-      return `$${amount.toFixed(0)}`;
-    }
-
-    let toastTimer = null;
-    function showToast(message) {
-      const toast = document.getElementById('toastNotification');
-      if (!toast) return;
-      toast.textContent = message;
-      toast.classList.remove('hidden');
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 2800);
+      const num = Number(amount) || 0;
+      if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+      if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+      if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`;
+      return `$${num.toFixed(0)}`;
     }
 
     function copyTextToClipboard(text, successMsg) {
@@ -845,18 +897,6 @@
         showToast('No symbols available to copy');
         return;
       }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          showToast(successMsg);
-        }).catch(() => {
-          fallbackCopyText(text, successMsg);
-        });
-      } else {
-        fallbackCopyText(text, successMsg);
-      }
-    }
-
-    function fallbackCopyText(text, successMsg) {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
@@ -897,18 +937,21 @@
 
     function applyScanFilters() {
       const { volMult, minEmaVol, minGain, minPrice, minMktCap, minTurnoverM } = state.filters;
+      const paused = state.pausedFilters;
       const minTurnoverDollars = minTurnoverM * 1_000_000;
 
       state.filteredHistory = rawHistory.map(dayEntry => {
         const matched = (dayEntry.stocks || []).filter(st => {
-          if ((st.volMult || 0) < volMult) return false;
-          if ((st.emaVol30 || 0) < minEmaVol) return false;
-          if ((st.pctChange || 0) < minGain) return false;
-          if ((st.price || 0) <= minPrice) return false;
-          if ((st.mktCapM || 0) <= minMktCap) return false;
-          const dayTurnover = st.turnover || 0;
-          const avgTurnover20 = st.turnover20d || 0;
-          if (dayTurnover < minTurnoverDollars && avgTurnover20 < minTurnoverDollars) return false;
+          if (!paused.has('volMult') && (st.volMult || 0) < volMult) return false;
+          if (!paused.has('minEmaVol') && (st.emaVol30 || 0) < minEmaVol) return false;
+          if (!paused.has('minGain') && (st.pctChange || 0) < minGain) return false;
+          if (!paused.has('minPrice') && (st.price || 0) <= minPrice) return false;
+          if (!paused.has('minMktCap') && (st.mktCapM || 0) <= minMktCap) return false;
+          if (!paused.has('minTurnoverM')) {
+            const dayTurnover = st.turnover || 0;
+            const avgTurnover20 = st.turnover20d || 0;
+            if (dayTurnover < minTurnoverDollars && avgTurnover20 < minTurnoverDollars) return false;
+          }
           return true;
         });
         return { date: dayEntry.date, stocks: matched };
@@ -987,23 +1030,24 @@
       }
 
       const f = state.filters;
+      const paused = state.pausedFilters;
       const floor = state.captureFloor;
       const exceeded = [];
 
-      if (f.minTurnoverM < floor.minTurnoverM) {
-        exceeded.push(`VWAP Turnover < $${floor.minTurnoverM}M`);
+      if (paused.has('minTurnoverM') || f.minTurnoverM < floor.minTurnoverM) {
+        exceeded.push(paused.has('minTurnoverM') ? 'VWAP Turnover (paused)' : `VWAP Turnover < $${floor.minTurnoverM}M`);
       }
-      if (f.minGain < floor.minGain) {
-        exceeded.push(`Daily % Gain < ${floor.minGain}%`);
+      if (paused.has('minGain') || f.minGain < floor.minGain) {
+        exceeded.push(paused.has('minGain') ? 'Daily % Gain (paused)' : `Daily % Gain < ${floor.minGain}%`);
       }
-      if (f.volMult < floor.volMult) {
-        exceeded.push(`Volume Mult < ${floor.volMult}x`);
+      if (paused.has('volMult') || f.volMult < floor.volMult) {
+        exceeded.push(paused.has('volMult') ? 'Volume Mult (paused)' : `Volume Mult < ${floor.volMult}x`);
       }
-      if (f.minPrice < floor.minPrice) {
-        exceeded.push(`Daily Close < $${floor.minPrice}`);
+      if (paused.has('minPrice') || f.minPrice < floor.minPrice) {
+        exceeded.push(paused.has('minPrice') ? 'Daily Close (paused)' : `Daily Close < $${floor.minPrice}`);
       }
-      if (f.minMktCap < floor.minMktCapM) {
-        exceeded.push(`Market Cap < $${floor.minMktCapM}M`);
+      if (paused.has('minMktCap') || f.minMktCap < floor.minMktCapM) {
+        exceeded.push(paused.has('minMktCap') ? 'Market Cap (paused)' : `Market Cap < $${floor.minMktCapM}M`);
       }
 
       if (exceeded.length === 0) {
@@ -1017,6 +1061,57 @@
         textEl.textContent = `EOD file pre-filters at ${exceeded.join(', ')}. To scan below this floor, lower captureFloor in fetch_us_eod.py and re-run Actions.`;
       }
       banner.classList.remove('hidden');
+    }
+
+    function updateFilterPauseUI() {
+      const pauseSvg = `<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm7 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" /></svg>`;
+      const playSvg = `<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>`;
+
+      document.querySelectorAll('.pause-filter-btn').forEach(btn => {
+        const key = btn.getAttribute('data-pause-filter');
+        const isPaused = state.pausedFilters.has(key);
+        const card = document.getElementById(`filterCard-${key}`);
+        const ruleText = card ? card.querySelector('.filter-rule-text') : null;
+        const inputEl = card ? card.querySelector('input') : null;
+
+        if (isPaused) {
+          btn.innerHTML = playSvg;
+          btn.title = 'Resume this filter';
+          btn.className = 'pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-amber-300 bg-amber-100 hover:bg-emerald-100 hover:border-emerald-300 text-amber-800 hover:text-emerald-800 transition cursor-pointer shrink-0';
+          if (card) {
+            card.classList.remove('bg-white', 'border-slate-200/90');
+            card.classList.add('bg-slate-100/80', 'border-dashed', 'border-slate-300');
+          }
+          if (ruleText) ruleText.classList.add('line-through', 'opacity-55');
+          if (inputEl) inputEl.classList.add('opacity-45');
+        } else {
+          btn.innerHTML = pauseSvg;
+          btn.title = 'Pause this filter';
+          btn.className = 'pause-filter-btn w-6 h-6 rounded-md flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-500 hover:text-amber-700 transition cursor-pointer shrink-0';
+          if (card) {
+            card.classList.add('bg-white', 'border-slate-200/90');
+            card.classList.remove('bg-slate-100/80', 'border-dashed', 'border-slate-300');
+          }
+          if (ruleText) ruleText.classList.remove('line-through', 'opacity-55');
+          if (inputEl) inputEl.classList.remove('opacity-45');
+        }
+      });
+
+      const activeCount = 6 - state.pausedFilters.size;
+      const badgeEl = document.getElementById('activeRulesBadge');
+      const resumeAllBtn = document.getElementById('resumeAllFiltersBtn');
+      if (badgeEl) {
+        if (state.pausedFilters.size === 0) {
+          badgeEl.textContent = '6 of 6 Rules Active';
+          badgeEl.className = 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+        } else {
+          badgeEl.textContent = `${activeCount} of 6 Active • ${state.pausedFilters.size} Paused`;
+          badgeEl.className = 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200';
+        }
+      }
+      if (resumeAllBtn) {
+        resumeAllBtn.classList.toggle('hidden', state.pausedFilters.size === 0);
+      }
     }
 
     function loadParsedEodDataset(parsed, sourceLabelPrefix = 'Auto-Synced EOD') {
@@ -1598,7 +1693,35 @@
         syncFilterInputsAndRefresh(true);
       });
 
+      // Individual Filter Pause / Resume Toggle Buttons
+      document.querySelectorAll('.pause-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-pause-filter');
+          const label = btn.getAttribute('data-filter-label') || key;
+          const willPause = !state.pausedFilters.has(key);
+
+          if (willPause) {
+            state.pausedFilters.add(key);
+          } else {
+            state.pausedFilters.delete(key);
+          }
+
+          updateFilterPauseUI();
+          syncFilterInputsAndRefresh(false);
+          const count = getFilteredStocksForSelectedDate().length;
+          showToast(`${willPause ? 'Paused' : 'Resumed'} "${label}" filter — ${count} stocks matched`);
+        });
+      });
+
+      document.getElementById('resumeAllFiltersBtn').addEventListener('click', () => {
+        state.pausedFilters.clear();
+        updateFilterPauseUI();
+        syncFilterInputsAndRefresh(true);
+      });
+
       document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+        state.pausedFilters.clear();
+        updateFilterPauseUI();
         document.getElementById('inputVolMult').value = '1.5';
         document.getElementById('inputMinEmaVol').value = '15000';
         document.getElementById('inputMinGain').value = '3.0';
