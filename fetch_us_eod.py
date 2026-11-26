@@ -175,15 +175,16 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 250) -> D
 def prefilter_candidates(
     daily_data: Dict[str, pd.DataFrame],
     backtest_days: int = 189,
-    vol_mult_min: float = 1.5,
-    ema_vol30_min: float = 15000.0,
-    pct_gain_min: float = 3.0,
-    close_min: float = 2.0,
-    turnover_min: float = 5_000_000.0,
+    vol_mult_min: float = 1.2,
+    ema_vol30_min: float = 10000.0,
+    pct_gain_min: float = 2.0,
+    close_min: float = 1.0,
+    turnover_min: float = 1_000_000.0,
 ) -> Dict[str, pd.DataFrame]:
     """
-    Computes daily technical indicators and keeps only stocks that triggered
-    the technical/liquidity filters on at least one day in the backtest window.
+    Computes daily technical indicators using a wide capture floor ($1M turnover,
+    2% gain, 1.2x volume, $1 close) so you can interactively adjust filters
+    down to $1M turnover directly in the web dashboard without re-fetching.
     """
     print("[3/5] Evaluating daily volume, % gain, and liquidity rules...")
     candidates: Dict[str, pd.DataFrame] = {}
@@ -221,10 +222,10 @@ def prefilter_candidates(
 
 def fetch_fundamentals_and_true_intraday_vwap(
     candidates: Dict[str, pd.DataFrame],
-    min_mkt_cap_m: float = 300.0,
+    min_mkt_cap_m: float = 150.0,
 ) -> tuple[Dict[str, dict], Dict[str, Dict[str, float]]]:
     """
-    1. Fetches Market Cap (> $300M) and GICS Sector for candidate tickers.
+    1. Fetches Market Cap (> $150M capture floor) and GICS Sector for candidates.
     2. Downloads 5-minute intraday bars (last 60 trading days) for qualifying
        stocks to compute TRUE intraday VWAP = sum(TypicalPrice * Vol) / sum(Vol).
     """
@@ -318,7 +319,7 @@ def build_json_payload(
     candidates: Dict[str, pd.DataFrame],
     qualified_meta: Dict[str, dict],
     true_vwap_map: Dict[str, Dict[str, float]],
-    turnover_min: float = 5_000_000.0,
+    turnover_min: float = 1_000_000.0,
 ) -> dict:
     """
     Assembles the final JSON structure consumed by us_backtest_screener.html.
@@ -371,6 +372,7 @@ def build_json_payload(
                     "volMult": round(float(row["vol_mult"]), 2),
                     "mktCapM": meta["mktCapM"],
                     "turnover": int(row["final_turnover_day"]),
+                    "turnover20d": int(row["final_turnover_20d"]),
                 }
             )
 
@@ -408,6 +410,13 @@ def build_json_payload(
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latestTradingDate": latest_date_str,
         "source": "Yahoo Finance EOD + 5m Intraday VWAP",
+        "captureFloor": {
+            "minTurnoverM": 1.0,
+            "minGain": 2.0,
+            "volMult": 1.2,
+            "minPrice": 1.0,
+            "minMktCapM": 150.0,
+        },
         "history": history_list,
         "candles": candles_dict,
     }
@@ -423,7 +432,7 @@ def main() -> None:
     universe = fetch_us_common_stocks(max_symbols=args.max_symbols)
     daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=250)
     candidates = prefilter_candidates(daily_data, backtest_days=args.days)
-    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(candidates, min_mkt_cap_m=300.0)
+    qualified_meta, true_vwap_map = fetch_fundamentals_and_true_intraday_vwap(candidates, min_mkt_cap_m=150.0)
     payload = build_json_payload(universe, candidates, qualified_meta, true_vwap_map)
 
     with open(args.output, "w", encoding="utf-8") as f:
