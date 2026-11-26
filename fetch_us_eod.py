@@ -343,17 +343,18 @@ def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
 
 def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> Dict[str, pd.DataFrame]:
     """
-    Downloads ~11 months of daily OHLCV bars in batches so 20-day and 30-day EMAs
-    are warmed up across a full 9-month (189 trading days) backtest window.
+    Downloads 3 years of daily OHLCV bars in batches so 20-day/30-day EMAs,
+    Weekly RSI(14), and Monthly RSI(14) are fully warmed up across the entire
+    9-month (189 trading days) backtest window.
     """
-    print(f"[2/5] Downloading 11-month daily OHLCV history in batches of {batch_size}...")
+    print(f"[2/5] Downloading 3-year daily OHLCV history in batches of {batch_size}...")
     daily_data: Dict[str, pd.DataFrame] = {}
     total_batches = math.ceil(len(symbols) / batch_size)
 
     for b_idx in range(total_batches):
         chunk = symbols[b_idx * batch_size : (b_idx + 1) * batch_size]
         print(f"      Batch {b_idx + 1}/{total_batches} ({len(chunk)} tickers)...")
-        raw = _download_yf_with_retry(chunk, period="11mo", interval="1d", max_retries=3)
+        raw = _download_yf_with_retry(chunk, period="3y", interval="1d", max_retries=3)
 
         if raw.empty:
             continue
@@ -383,6 +384,78 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> D
     return daily_data
 
 
+def _compute_point_in_time_mtf_rsi(close_series: pd.Series, freq: str, period: int = 14) -> pd.Series:
+    """
+    Computes point-in-time Wilder RSI(period) on a higher timeframe ('W-FRI' or 'M')
+    for every daily bar without look-ahead bias. On mid-week or mid-month days,
+    uses completed prior periods' Wilder average gain/loss plus the current
+    in-progress period's close.
+    """
+    idx = pd.DatetimeIndex(close_series.index)
+    if idx.tz is not None:
+        idx = idx.tz_convert("America/New_York").tz_localize(None)
+
+    closes = close_series.to_numpy(dtype=float)
+    n = len(closes)
+    if n == 0:
+        return pd.Series([], index=close_series.index, dtype=float)
+
+    periods = idx.to_period(freq)
+    period_end_positions: List[int] = []
+    for i in range(n):
+        if i == n - 1 or periods[i] != periods[i + 1]:
+            period_end_positions.append(i)
+
+    num_periods = len(period_end_positions)
+    if num_periods < 2:
+        return pd.Series(np.full(n, 50.0), index=close_series.index, dtype=float)
+
+    period_closes = np.array([closes[pos] for pos in period_end_positions], dtype=float)
+    deltas = np.diff(period_closes)
+    gains = np.maximum(deltas, 0.0)
+    losses = np.maximum(-deltas, 0.0)
+
+    alpha = 1.0 / float(period)
+    avg_gain_after = np.zeros(num_periods, dtype=float)
+    avg_loss_after = np.zeros(num_periods, dtype=float)
+
+    avg_gain_after[1] = gains[0]
+    avg_loss_after[1] = losses[0]
+    for p in range(2, num_periods):
+        avg_gain_after[p] = (1.0 - alpha) * avg_gain_after[p - 1] + alpha * gains[p - 1]
+        avg_loss_after[p] = (1.0 - alpha) * avg_loss_after[p - 1] + alpha * losses[p - 1]
+
+    rsi_out = np.full(n, 50.0, dtype=float)
+    p_idx = 0
+    for i in range(n):
+        while p_idx < num_periods - 1 and i > period_end_positions[p_idx]:
+            p_idx += 1
+
+        if p_idx == 0:
+            rsi_out[i] = 50.0
+            continue
+
+        prev_close = period_closes[p_idx - 1]
+        cur_delta = closes[i] - prev_close
+        cur_gain = cur_delta if cur_delta > 0.0 else 0.0
+        cur_loss = -cur_delta if cur_delta < 0.0 else 0.0
+
+        if p_idx == 1:
+            ag = cur_gain
+            al = cur_loss
+        else:
+            ag = (1.0 - alpha) * avg_gain_after[p_idx - 1] + alpha * cur_gain
+            al = (1.0 - alpha) * avg_loss_after[p_idx - 1] + alpha * cur_loss
+
+        if al == 0.0:
+            rsi_out[i] = 100.0 if ag > 0.0 else 50.0
+        else:
+            rs = ag / al
+            rsi_out[i] = 100.0 - (100.0 / (1.0 + rs))
+
+    return pd.Series(rsi_out, index=close_series.index, dtype=float)
+
+
 def prefilter_candidates(
     daily_data: Dict[str, pd.DataFrame],
     backtest_days: int = 189,
@@ -393,11 +466,11 @@ def prefilter_candidates(
     turnover_min: float = 1_000_000.0,
 ) -> Dict[str, pd.DataFrame]:
     """
-    Computes daily technical indicators using a wide capture floor ($1M turnover,
-    1% gain, 1.1x volume, 10k 30-day EMA vol, $1 close) so you can interactively
-    adjust or pause filters directly in the web dashboard without re-fetching.
+    Computes daily technical indicators plus point-in-time Weekly RSI(14) and
+    Monthly RSI(14) using a wide capture floor so you can interactively adjust
+    or pause filters directly in the web dashboard without re-fetching.
     """
-    print("[3/5] Evaluating daily volume, % gain, and liquidity rules...")
+    print("[3/5] Evaluating daily volume, % gain, liquidity, and 1W/1M RSI(14)...")
     candidates: Dict[str, pd.DataFrame] = {}
 
     for sym, df in daily_data.items():
@@ -407,6 +480,8 @@ def prefilter_candidates(
         df["sma_vol_20"] = df["Volume"].rolling(20, min_periods=1).mean()
         df["pct_chg"] = ((df["Close"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100.0).fillna(0.0)
         df["vol_mult"] = (df["Volume"] / df["ema_vol_20"].replace(0, np.nan)).fillna(0.0)
+        df["rsi_14_w"] = _compute_point_in_time_mtf_rsi(df["Close"], freq="W-FRI", period=14)
+        df["rsi_14_m"] = _compute_point_in_time_mtf_rsi(df["Close"], freq="M", period=14)
 
         # Typical price proxy before 5-minute intraday VWAP refinement
         df["vwap"] = (df["High"] + df["Low"] + df["Close"]) / 3.0
@@ -661,6 +736,8 @@ def build_json_payload(
                     "mktCapM": _safe_float(meta["mktCapM"], digits=1, default=0.0),
                     "turnover": day_turnover,
                     "turnover20d": avg_turnover_20d,
+                    "rsi14W": _safe_float(row.get("rsi_14_w", 50.0), digits=1, default=50.0),
+                    "rsi14M": _safe_float(row.get("rsi_14_m", 50.0), digits=1, default=50.0),
                 }
             )
 
