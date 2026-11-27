@@ -1,9 +1,10 @@
 """
 US Market EOD & True Intraday VWAP Screener Data Generator
 ==========================================================
-Fetches NYSE & NASDAQ common stocks, evaluates your 7-rule breakout scan across
-the last 9 months (189 trading days), computes TRUE intraday VWAP from 5-minute
-bars, and exports `us_eod_data.json` for the Chartink-style US dashboard.
+Fetches All US Equities (NYSE, NASDAQ, NYSE American/AMEX, CBOE, OTC & ADRs),
+evaluates your breakout scan across the last 9 months (189 trading days),
+computes TRUE intraday VWAP from 5-minute bars, and exports `us_eod_data.json`
+for the Chartink-style US dashboard.
 
 Requirements:
     pip install yfinance pandas numpy requests
@@ -241,12 +242,34 @@ def _is_valid_common_ticker(sym: str) -> bool:
 
 def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
     """
-    Fetches the active NYSE & NASDAQ common stock universe using the official
-    SEC EDGAR exchange directory first (cloud-IP friendly), with NASDAQ Trader
-    symbol files as automatic fallback.
+    Fetches the active All-US equity universe (NYSE, NASDAQ, NYSE American/AMEX,
+    CBOE, OTC & ADRs) using the official SEC EDGAR exchange directory first
+    (cloud-IP friendly), with NASDAQ Trader symbol files as automatic fallback.
     """
-    print("[1/5] Fetching NYSE & NASDAQ common stock universe...")
+    print("[1/5] Fetching All-US equity universe (NYSE, NASDAQ, AMEX, CBOE, OTC & ADRs)...")
     records: List[dict] = []
+
+    exchange_normalize = {
+        "NASDAQ": "NASDAQ",
+        "NYSE": "NYSE",
+        "NYSE AMERICAN": "AMEX",
+        "AMEX": "AMEX",
+        "NYSE MKT": "AMEX",
+        "NYSE ARCA": "NYSE",
+        "CBOE": "CBOE",
+        "BATS": "CBOE",
+        "CBOE BZX": "CBOE",
+        "CBOE BYX": "CBOE",
+        "CBOE EDGX": "CBOE",
+        "CBOE EDGA": "CBOE",
+        "OTC": "OTC",
+        "OTCBB": "OTC",
+        "OTCQX": "OTC",
+        "OTCQB": "OTC",
+        "PINK": "OTC",
+        "": "OTC",
+        "NONE": "OTC",
+    }
 
     # Primary source: Official SEC EDGAR company_tickers_exchange.json
     try:
@@ -270,9 +293,9 @@ def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
                 idx_exch = fields.index("exchange")
 
                 for row in rows:
-                    exch_raw = str(row[idx_exch] or "").strip()
-                    exch_upper = exch_raw.upper()
-                    if exch_upper not in ("NASDAQ", "NYSE"):
+                    exch_raw = str(row[idx_exch] or "").strip().upper()
+                    mapped_exch = exchange_normalize.get(exch_raw)
+                    if not mapped_exch:
                         continue
 
                     sym = str(row[idx_ticker] or "").strip().upper().replace(".", "-")
@@ -283,14 +306,21 @@ def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
                         {
                             "Symbol": sym,
                             "CleanName": _clean_company_name(row[idx_name]),
-                            "Exchange": "NASDAQ" if exch_upper == "NASDAQ" else "NYSE",
+                            "Exchange": mapped_exch,
                         }
                     )
     except Exception as exc:
         print(f"      SEC EDGAR directory notice: {exc} — trying NASDAQ Trader fallback...")
 
-    # Fallback source: NASDAQ Trader symbol directories
+    # Fallback source: NASDAQ Trader symbol directories (NASDAQ, NYSE, AMEX, CBOE)
     if not records:
+        other_exch_map = {
+            "N": "NYSE",
+            "A": "AMEX",
+            "P": "NYSE",
+            "Z": "CBOE",
+            "V": "NYSE",
+        }
         browser_headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -313,49 +343,55 @@ def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
                 df_txt = df_txt[df_txt["Test Issue"].astype(str).str.upper() == "N"]
                 if "ETF" in df_txt.columns:
                     df_txt = df_txt[df_txt["ETF"].astype(str).str.upper() == "N"]
-                if not is_nasdaq and "Exchange" in df_txt.columns:
-                    df_txt = df_txt[df_txt["Exchange"].astype(str).str.upper() == "N"]
 
                 for _, row in df_txt.iterrows():
                     sym = str(row[sym_col] or "").strip().upper().replace(".", "-")
                     if not _is_valid_common_ticker(sym):
                         continue
+                    if is_nasdaq:
+                        mapped_exch = "NASDAQ"
+                    else:
+                        ex_code = str(row.get("Exchange", "") or "").strip().upper()
+                        mapped_exch = other_exch_map.get(ex_code)
+                        if not mapped_exch:
+                            continue
                     records.append(
                         {
                             "Symbol": sym,
                             "CleanName": _clean_company_name(row.get("Security Name", sym)),
-                            "Exchange": "NASDAQ" if is_nasdaq else "NYSE",
+                            "Exchange": mapped_exch,
                         }
                     )
             except Exception as exc:
                 print(f"      Warning fetching {url}: {exc}")
 
     if not records:
-        raise RuntimeError("Unable to retrieve NYSE/NASDAQ symbol list from SEC EDGAR or NASDAQ Trader.")
+        raise RuntimeError("Unable to retrieve US symbol list from SEC EDGAR or NASDAQ Trader.")
 
     universe = pd.DataFrame(records).drop_duplicates(subset=["Symbol"]).reset_index(drop=True)
     if max_symbols and max_symbols > 0:
         universe = universe.head(max_symbols).copy()
 
-    print(f"      Loaded {len(universe):,} NYSE & NASDAQ common stocks.")
+    exch_counts = universe["Exchange"].value_counts().to_dict()
+    print(f"      Loaded {len(universe):,} US stocks & ADRs ({exch_counts}).")
     return universe
 
 
-def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> Dict[str, pd.DataFrame]:
+def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 200) -> Dict[str, pd.DataFrame]:
     """
-    Downloads 3 years of daily OHLCV bars in batches so 20-day/30-day EMAs,
-    Weekly RSI(14), and Monthly RSI(14) are fully warmed up across the entire
-    9-month (189 trading days) backtest window.
+    Downloads 3 years of daily OHLCV bars in batches (providing full 14-month
+    warmup for Weekly & Monthly Wilder RSI across the entire 9-month backtest).
     """
-    print(f"[2/5] Downloading 3-year daily OHLCV history in batches of {batch_size}...")
+    print(f"[2/5] Downloading 3-year daily OHLCV bars for {len(symbols):,} symbols...")
     daily_data: Dict[str, pd.DataFrame] = {}
-    total_batches = math.ceil(len(symbols) / batch_size)
+    if not symbols:
+        return daily_data
 
+    total_batches = math.ceil(len(symbols) / batch_size)
     for b_idx in range(total_batches):
         chunk = symbols[b_idx * batch_size : (b_idx + 1) * batch_size]
-        print(f"      Batch {b_idx + 1}/{total_batches} ({len(chunk)} tickers)...")
+        print(f"      Batch {b_idx + 1}/{total_batches} ({len(chunk)} symbols)...")
         raw = _download_yf_with_retry(chunk, period="3y", interval="1d", max_retries=3)
-
         if raw.empty:
             continue
 
@@ -371,9 +407,10 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 150) -> D
                         continue
                 else:
                     df = raw.copy()
+
                 df = df.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
                 df = df[df["Volume"] > 0]
-                if len(df) >= 35:
+                if len(df) >= 60:
                     daily_data[sym] = df
             except Exception:
                 continue
@@ -782,6 +819,7 @@ def build_json_payload(
     return {
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latestTradingDate": latest_date_str,
+        "universe": "All US (NYSE, NASDAQ, AMEX, CBOE, OTC & ADRs)",
         "source": "Yahoo Finance EOD + 5m Intraday VWAP",
         "captureFloor": floor_meta,
         "history": history_list,
@@ -813,7 +851,7 @@ def main() -> None:
     }
 
     universe = fetch_us_common_stocks(max_symbols=args.max_symbols)
-    daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=150)
+    daily_data = download_daily_ohlcv_batched(universe["Symbol"].tolist(), batch_size=200)
     candidates = prefilter_candidates(
         daily_data,
         backtest_days=args.days,
