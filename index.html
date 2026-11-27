@@ -119,7 +119,13 @@
           <span>Stock passes</span>
           <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">all</span>
           <span>of the below filters in</span>
-          <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-semibold">NYSE &amp; NASDAQ Common Stocks</span>
+          <select id="exchangeSegmentSelect" aria-label="US Exchange Segment"
+            class="px-2 py-0.5 rounded bg-indigo-100 hover:bg-indigo-200/80 text-indigo-800 font-semibold border border-indigo-200/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer transition">
+            <option value="ALL" selected>All US Stocks (NYSE, NASDAQ, AMEX, CBOE, OTC &amp; ADRs)</option>
+            <option value="MAJOR">NYSE &amp; NASDAQ Only</option>
+            <option value="AMEX_CBOE">AMEX &amp; CBOE Only</option>
+            <option value="OTC">OTC &amp; ADRs (OTC) Only</option>
+          </select>
           <span>segment:</span>
         </div>
 
@@ -866,6 +872,7 @@
     let rawHistory = generateRawTradingHistory(252);
 
     const state = {
+      exchangeSegment: 'ALL',
       filters: {
         volMult: 1.5,
         minEmaVol: 15000,
@@ -964,32 +971,49 @@
         document.execCommand('copy');
         showToast(successMsg);
       } catch (e) {
-        showToast('Unable to copy automatically — please use Preview & Edit List');
+        showToast('Unable to copy automatically — please use Preview & Edit');
+      } finally {
+        document.body.removeChild(ta);
       }
-      document.body.removeChild(ta);
     }
 
-    function downloadTextFile(filename, content, mimeType) {
+    function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-8;') {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    }
+
+    function formatTradingViewSymbol(stock) {
+      const rawEx = String(stock.exchange || 'NASDAQ').toUpperCase();
+      const tvEx = rawEx === 'CBOE' ? 'BATS' : rawEx;
+      return `${tvEx}:${stock.symbol}`;
     }
 
     function formatStockSymbolsList(stocks, fmt) {
       if (!stocks || stocks.length === 0) return '';
       if (fmt === 'tv') {
-        return stocks.map(s => `${s.exchange || 'NASDAQ'}:${s.symbol}`).join(', ');
+        return stocks.map(s => formatTradingViewSymbol(s)).join(', ');
       }
       if (fmt === 'lines') {
         return stocks.map(s => s.symbol).join('\n');
       }
       return stocks.map(s => s.symbol).join(', ');
+    }
+
+    function matchesExchangeSegment(stock) {
+      const seg = state.exchangeSegment || 'ALL';
+      if (seg === 'ALL') return true;
+      const ex = String(stock.exchange || 'NASDAQ').toUpperCase();
+      if (seg === 'MAJOR') return ex === 'NYSE' || ex === 'NASDAQ';
+      if (seg === 'AMEX_CBOE') return ex === 'AMEX' || ex === 'CBOE';
+      if (seg === 'OTC') return ex === 'OTC';
+      return true;
     }
 
     function applyScanFilters() {
@@ -999,6 +1023,7 @@
 
       state.filteredHistory = rawHistory.map(dayEntry => {
         const matched = (dayEntry.stocks || []).filter(st => {
+          if (!matchesExchangeSegment(st)) return false;
           if (!paused.has('volMult') && (st.volMult || 0) < volMult) return false;
           if (!paused.has('minEmaVol') && (st.emaVol30 || 0) < minEmaVol) return false;
           if (!paused.has('minGain') && (st.pctChange || 0) < minGain) return false;
@@ -1938,6 +1963,9 @@
       const resetFiltersBtn = document.getElementById('resetFiltersBtn');
       if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
+          state.exchangeSegment = 'ALL';
+          const segSel = document.getElementById('exchangeSegmentSelect');
+          if (segSel) segSel.value = 'ALL';
           state.filters = {
             volMult: 1.5,
             minEmaVol: 15000,
@@ -1962,6 +1990,17 @@
           updateCaptureFloorWarning();
           renderAll();
           showToast('Scan filters reset to defaults');
+        });
+      }
+
+      // Exchange segment selector
+      const exchangeSegmentSelect = document.getElementById('exchangeSegmentSelect');
+      if (exchangeSegmentSelect) {
+        exchangeSegmentSelect.addEventListener('change', () => {
+          state.exchangeSegment = exchangeSegmentSelect.value || 'ALL';
+          state.currentPage = 1;
+          applyScanFilters();
+          renderAll();
         });
       }
 
