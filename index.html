@@ -437,6 +437,8 @@
             <option value="126">6 months</option>
             <option value="189" selected>9 months</option>
             <option value="252">1 year</option>
+            <option value="378">18 months</option>
+            <option value="504">2 years</option>
           </select>
         </div>
 
@@ -774,7 +776,7 @@
       };
     }
 
-    function generateRawTradingHistory(totalDays = 252) {
+    function generateRawTradingHistory(totalDays = 504) {
       const rand = seededRandom(20261121);
       const history = [];
       const endDate = new Date(2026, 10, 20);
@@ -869,7 +871,7 @@
     // =========================================================================
     // 4. APPLICATION STATE
     // =========================================================================
-    let rawHistory = generateRawTradingHistory(252);
+    let rawHistory = generateRawTradingHistory(504);
 
     const state = {
       exchangeSegment: 'ALL',
@@ -895,7 +897,7 @@
       searchQuery: '',
       currentPage: 1,
       perPage: 20,
-      timeframeDays: 189,
+      timeframeDays: 504,
       viewMode: 'bars',
       zoomEnabled: true,
       zoomPercent: 100,
@@ -1111,6 +1113,12 @@
       if (state.missingRsiInJson && (!state.pausedFilters.has('minRsiW') || !state.pausedFilters.has('minRsiM'))) {
         banner.classList.remove('hidden');
         textEl.textContent = 'Loaded EOD JSON does not include Weekly/Monthly RSI(14) yet. Update fetch_us_eod.py & re-run GitHub Actions once to activate RSI(14) 1W & 1M filtering.';
+        return;
+      }
+
+      if (state.timeframeDays > rawHistory.length && rawHistory.length > 0) {
+        banner.classList.remove('hidden');
+        textEl.textContent = `Loaded EOD JSON currently has ${rawHistory.length} trading days (~${Math.round(rawHistory.length / 21)} months). Update fetch_us_eod.py & re-run GitHub Actions once to expand up to 2 years (504 days).`;
         return;
       }
 
@@ -2234,6 +2242,9 @@
         state.timeframeDays = Number(e.target.value) || 189;
         renderTable();
         drawBacktestChart();
+        if (rawHistory.length < state.timeframeDays) {
+          showToast(`Showing all ${rawHistory.length} saved trading days (re-run GitHub Actions once for full 2-year history)`);
+        }
       });
 
       const viewModeBarsBtn = document.getElementById('viewModeBarsBtn');
