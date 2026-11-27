@@ -2,7 +2,7 @@
 US Market EOD & True Intraday VWAP Screener Data Generator
 ==========================================================
 Fetches All US Equities (NYSE, NASDAQ, NYSE American/AMEX, CBOE, OTC & ADRs),
-evaluates your breakout scan across the last 9 months (189 trading days),
+evaluates your breakout scan across the last 2 years (504 trading days),
 computes TRUE intraday VWAP from 5-minute bars, and exports `us_eod_data.json`
 for the Chartink-style US dashboard.
 
@@ -11,7 +11,7 @@ Requirements:
 
 Usage:
     python fetch_us_eod.py
-    python fetch_us_eod.py --output us_eod_data.json --days 189
+    python fetch_us_eod.py --output us_eod_data.json --days 504
 """
 
 import argparse
@@ -379,10 +379,10 @@ def fetch_us_common_stocks(max_symbols: int = 0) -> pd.DataFrame:
 
 def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 200) -> Dict[str, pd.DataFrame]:
     """
-    Downloads 3 years of daily OHLCV bars in batches (providing full 14-month
-    warmup for Weekly & Monthly Wilder RSI across the entire 9-month backtest).
+    Downloads 4 years of daily OHLCV bars in batches (providing full 14-month
+    warmup for Weekly & Monthly Wilder RSI across the entire 2-year backtest).
     """
-    print(f"[2/5] Downloading 3-year daily OHLCV bars for {len(symbols):,} symbols...")
+    print(f"[2/5] Downloading 4-year daily OHLCV bars for {len(symbols):,} symbols...")
     daily_data: Dict[str, pd.DataFrame] = {}
     if not symbols:
         return daily_data
@@ -391,7 +391,7 @@ def download_daily_ohlcv_batched(symbols: List[str], batch_size: int = 200) -> D
     for b_idx in range(total_batches):
         chunk = symbols[b_idx * batch_size : (b_idx + 1) * batch_size]
         print(f"      Batch {b_idx + 1}/{total_batches} ({len(chunk)} symbols)...")
-        raw = _download_yf_with_retry(chunk, period="3y", interval="1d", max_retries=3)
+        raw = _download_yf_with_retry(chunk, period="4y", interval="1d", max_retries=3)
         if raw.empty:
             continue
 
@@ -495,7 +495,7 @@ def _compute_point_in_time_mtf_rsi(close_series: pd.Series, freq: str, period: i
 
 def prefilter_candidates(
     daily_data: Dict[str, pd.DataFrame],
-    backtest_days: int = 189,
+    backtest_days: int = 504,
     vol_mult_min: float = 1.1,
     ema_vol30_min: float = 10000.0,
     pct_gain_min: float = 1.0,
@@ -819,6 +819,7 @@ def build_json_payload(
     return {
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "latestTradingDate": latest_date_str,
+        "backtestDays": len(history_list),
         "universe": "All US (NYSE, NASDAQ, AMEX, CBOE, OTC & ADRs)",
         "source": "Yahoo Finance EOD + 5m Intraday VWAP",
         "captureFloor": floor_meta,
@@ -830,7 +831,7 @@ def build_json_payload(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch US EOD + True Intraday VWAP Screener JSON")
     parser.add_argument("--output", default="us_eod_data.json", help="Output JSON path (default: us_eod_data.json)")
-    parser.add_argument("--days", type=int, default=189, help="Backtest history trading days (default: 189 = 9 months)")
+    parser.add_argument("--days", type=int, default=504, help="Backtest history trading days (default: 504 = 2 years)")
     parser.add_argument("--max-symbols", type=int, default=0, help="Optional symbol limit for quick testing (0 = all)")
     parser.add_argument("--min-turnover", type=float, default=1.0, help="Min VWAP turnover in $M (default: 1.0)")
     parser.add_argument("--min-gain", type=float, default=1.0, help="Min daily %% gain (default: 1.0)")
